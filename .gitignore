@@ -1,0 +1,9 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+binaries/*
+!binaries/.gitkeep
+.env
+*.log
+.DS_Store
