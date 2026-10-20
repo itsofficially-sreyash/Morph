@@ -1,19 +1,11 @@
+use std::path::{Path, PathBuf};
+
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_store::StoreExt;
 
 const STORE_FILE: &str = "settings.json";
 const STORE_KEY: &str = "settings";
-
-/// Where converted files are written.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case", tag = "kind", content = "path")]
-pub enum OutputLocation {
-    /// Next to the source file.
-    SameAsSource,
-    /// A fixed folder chosen by the user.
-    Custom(String),
-}
 
 /// What to do when the output file already exists.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,8 +21,9 @@ pub enum OverwritePolicy {
 #[serde(default)]
 pub struct Settings {
     pub hotkey: String,
-    pub output: OutputLocation,
-    /// `{name}` is the source file stem, `{ext}` the new extension.
+    /// `{name}` is the source file stem, `{ext}` the new extension. Converted files are
+    /// always written in the original file's folder (owner rule), so this is a file
+    /// name only; folder separators are rejected.
     pub naming_pattern: String,
     pub overwrite: OverwritePolicy,
 }
@@ -39,7 +32,6 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             hotkey: "Ctrl+Shift+Space".into(),
-            output: OutputLocation::SameAsSource,
             naming_pattern: "{name}.converted.{ext}".into(),
             // AGENTS.md rule 3: never overwrite without asking.
             overwrite: OverwritePolicy::Ask,
@@ -53,14 +45,21 @@ impl Settings {
             return Err("Hotkey can't be empty".into());
         }
         if !self.naming_pattern.contains("{name}") || !self.naming_pattern.contains("{ext}") {
-            return Err("Naming pattern must contain {name} and {ext}".into());
+            return Err("File name must contain {name} and {ext}".into());
         }
-        if let OutputLocation::Custom(path) = &self.output {
-            if path.trim().is_empty() {
-                return Err("Choose an output folder".into());
-            }
+        if self.naming_pattern.contains(['/', '\\']) || self.naming_pattern.contains("..") {
+            return Err("File name can't contain folders: converted files are saved next to the original".into());
         }
         Ok(())
+    }
+
+    /// Where a converted copy of `source` with extension `ext` is written: always the
+    /// original's own folder. Every engine must use this (AGENTS.md rule 3a).
+    #[allow(dead_code)] // first caller: the engines in step 4
+    pub fn output_path(&self, source: &Path, ext: &str) -> PathBuf {
+        let stem = source.file_stem().map(|s| s.to_string_lossy()).unwrap_or_default();
+        let name = self.naming_pattern.replace("{name}", &stem).replace("{ext}", ext.trim_start_matches('.'));
+        source.parent().unwrap_or_else(|| Path::new("")).join(name)
     }
 }
 
@@ -103,7 +102,6 @@ mod tests {
         let s = Settings::default();
         assert!(s.validate().is_ok());
         assert_eq!(s.overwrite, OverwritePolicy::Ask);
-        assert_eq!(s.output, OutputLocation::SameAsSource);
     }
 
     #[test]
@@ -114,21 +112,35 @@ mod tests {
     }
 
     #[test]
-    fn custom_output_roundtrips() {
-        let s = Settings {
-            output: OutputLocation::Custom("D:\\Out".into()),
-            ..Default::default()
-        };
-        let json = serde_json::to_string(&s).unwrap();
-        assert_eq!(serde_json::from_str::<Settings>(&json).unwrap(), s);
+    fn old_custom_folder_setting_is_ignored() {
+        // Saved by earlier builds, which had a "save in this folder" option.
+        let s: Settings =
+            serde_json::from_str(r#"{"hotkey":"Alt+M","output":{"kind":"custom","path":"D:\\Out"}}"#).unwrap();
+        assert_eq!(s.hotkey, "Alt+M");
+        let out = s.output_path(Path::new("C:\\Pics\\a.png"), "webp");
+        assert_eq!(out.parent(), Some(Path::new("C:\\Pics")));
+    }
+
+    #[test]
+    fn output_goes_next_to_the_original() {
+        let s = Settings::default();
+        let src = Path::new("D:/Photos/2026/holiday.png");
+        assert_eq!(s.output_path(src, "webp"), Path::new("D:/Photos/2026/holiday.converted.webp"));
+        assert_eq!(s.output_path(src, ".jpg"), Path::new("D:/Photos/2026/holiday.converted.jpg"));
+    }
+
+    #[test]
+    fn custom_pattern_keeps_the_folder() {
+        let s = Settings { naming_pattern: "{name} (small).{ext}".into(), ..Default::default() };
+        let out = s.output_path(Path::new("D:/Videos/clip.mp4"), "mp4");
+        assert_eq!(out, Path::new("D:/Videos/clip (small).mp4"));
     }
 
     #[test]
     fn rejects_bad_pattern() {
-        let s = Settings {
-            naming_pattern: "{name}.out".into(),
-            ..Default::default()
-        };
-        assert!(s.validate().is_err());
+        for bad in ["{name}.out", "..\\{name}.{ext}", "out/{name}.{ext}", "C:\\Temp\\{name}.{ext}", "{name}..{ext}"] {
+            let s = Settings { naming_pattern: bad.into(), ..Default::default() };
+            assert!(s.validate().is_err(), "{bad} should be rejected");
+        }
     }
 }

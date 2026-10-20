@@ -4,7 +4,6 @@
   import type { Settings } from "$lib/settings";
 
   let settings = $state<Settings | null>(null);
-  let customPath = $state("");
   let status = $state<{ kind: "ok" | "error"; text: string } | null>(null);
 
   // Why the saved hotkey couldn't be registered at startup (taken, or unsupported on Wayland).
@@ -12,22 +11,14 @@
 
   onMount(async () => {
     settings = await invoke<Settings>("get_settings");
-    if (settings.output.kind === "custom") customPath = settings.output.path;
     hotkeyError = await invoke<string | null>("hotkey_status");
   });
 
   async function save(event: Event) {
     event.preventDefault();
     if (!settings) return;
-    const next: Settings = {
-      ...settings,
-      output:
-        settings.output.kind === "custom"
-          ? { kind: "custom", path: customPath }
-          : { kind: "same_as_source" },
-    };
     try {
-      settings = await invoke<Settings>("set_settings", { settings: next });
+      settings = await invoke<Settings>("set_settings", { settings });
       hotkeyError = null;
       status = { kind: "ok", text: "Saved" };
     } catch (e) {
@@ -59,25 +50,13 @@
         {/if}
       </label>
 
-      <fieldset>
-        <legend>Save converted files</legend>
-        <label class="radio">
-          <input type="radio" bind:group={settings.output.kind} value="same_as_source" />
-          Next to the original
-        </label>
-        <label class="radio">
-          <input type="radio" bind:group={settings.output.kind} value="custom" />
-          In this folder
-        </label>
-        {#if settings.output.kind === "custom"}
-          <input bind:value={customPath} placeholder="D:\Converted" />
-        {/if}
-      </fieldset>
-
       <label>
         <span>File name</span>
         <input bind:value={settings.naming_pattern} />
-        <small><code>{"{name}"}</code> is the original name, <code>{"{ext}"}</code> the new extension.</small>
+        <small>
+          Converted files are saved in the same folder as the original. <code>{"{name}"}</code> is the
+          original name, <code>{"{ext}"}</code> the new extension.
+        </small>
       </label>
 
       <label>
@@ -161,27 +140,15 @@
     border-radius: 12px;
     padding: 18px;
   }
-  label,
-  fieldset {
+  label {
     display: grid;
     gap: 6px;
   }
-  fieldset {
-    border: 0;
-    padding: 0;
-    margin: 0;
-  }
-  legend,
   label > span {
     font-weight: 600;
     margin-bottom: 4px;
   }
-  .radio {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  input:not([type="radio"]),
+  input,
   select {
     font: inherit;
     color: var(--text);

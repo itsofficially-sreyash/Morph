@@ -160,7 +160,7 @@
     overflow: hidden;
   }
   .stage {
-    --ring-bg: rgba(24, 22, 30, 0.9);
+    --ring-bg: rgba(24, 22, 30, 0.97);
     --ring-edge: rgba(255, 255, 255, 0.1);
     --hub-hi: #2c2935;
     --hub-lo: #1a1820;
@@ -174,7 +174,7 @@
   }
   @media (prefers-color-scheme: light) {
     .stage {
-      --ring-bg: rgba(250, 249, 246, 0.95);
+      --ring-bg: rgba(250, 249, 246, 0.98);
       --ring-edge: rgba(0, 0, 0, 0.1);
       --hub-hi: #ffffff;
       --hub-lo: #eeece7;

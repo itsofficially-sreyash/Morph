@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use tauri::{plugin::TauriPlugin, AppHandle, Manager, Runtime};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-use crate::overlay;
+use crate::orb;
 
 /// The hotkey Morph currently holds, and why the last attempt failed (if it did).
 #[derive(Default)]
@@ -17,7 +17,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
         // Morph only ever registers one shortcut, so any press means "toggle the orb".
         .with_handler(|app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
-                overlay::toggle(app);
+                orb::toggle(app);
             }
         })
         .build()

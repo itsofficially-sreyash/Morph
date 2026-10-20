@@ -1,9 +1,22 @@
+mod cli;
 mod hotkey;
+mod orb;
 mod overlay;
 mod settings;
 mod tray;
 
-use tauri::{Manager, RunEvent, WindowEvent};
+use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
+
+fn run_command<R: Runtime>(app: &AppHandle<R>, command: cli::Command, already_running: bool) {
+    match command {
+        cli::Command::Open(files) => orb::show_at_cursor(app, Some(files)),
+        cli::Command::Toggle => orb::toggle(app),
+        // Launching Morph again from the Start menu opens Settings; a first launch
+        // (e.g. at sign-in) stays quietly in the tray.
+        cli::Command::None if already_running => tray::show_settings(app),
+        cli::Command::None => {}
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -12,14 +25,8 @@ pub fn run() {
     // Must be registered first so a second launch is caught before anything else starts.
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // `morph --toggle` lets desktops without global hotkeys (GNOME on Wayland) bind
-            // their own system shortcut. TODO(step 6): route `--open <files>` too.
-            if args.iter().any(|a| a == "--toggle") {
-                overlay::toggle(app);
-            } else {
-                tray::show_settings(app);
-            }
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            run_command(app, cli::parse(&args, &cwd), true);
         }));
     }
 
@@ -36,12 +43,19 @@ pub fn run() {
         ])
         .setup(|app| {
             tray::create(app.handle())?;
+            // Windows draws the orb natively (no WebView2 at idle); Linux keeps the web orb for now.
+            #[cfg(not(windows))]
+            overlay::create(app.handle())?;
             // A taken or unsupported hotkey must not stop Morph from starting; the
             // settings window shows the reason (see `hotkey_status`).
             let saved = settings::load(app.handle());
             if let Err(e) = hotkey::apply(app.handle(), &saved.hotkey) {
                 eprintln!("hotkey: {e}");
             }
+            // The first launch can carry a command too (e.g. right-click while Morph isn't running).
+            let args: Vec<String> = std::env::args().collect();
+            let cwd = std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
+            run_command(app.handle(), cli::parse(&args, &cwd), false);
             Ok(())
         })
         .on_window_event(|window, event| match event {

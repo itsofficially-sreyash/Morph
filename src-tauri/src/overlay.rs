@@ -1,13 +1,36 @@
+//! The web orb (a transparent WebView window running `src/routes/overlay`).
+//! Used on Linux only; Windows draws the orb natively (`crate::orb`). `place` and `Rect`
+//! are shared by both.
+#![cfg_attr(windows, allow(dead_code))]
+
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
 use tauri::{
-    AppHandle, DragDropEvent, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewWindow, Window,
+    AppHandle, DragDropEvent, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder, Window,
 };
 
 pub const LABEL: &str = "overlay";
-/// Logical (DPI-independent) size of the overlay window; matches tauri.conf.json.
+/// Logical (DPI-independent) size of the overlay window.
 const SIZE: f64 = 380.0;
+
+/// Creates the hidden overlay window up front, so it opens instantly.
+pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("/overlay".into()))
+        .title("Morph")
+        .inner_size(SIZE, SIZE)
+        .visible(false)
+        .transparent(true)
+        .decorations(false)
+        .shadow(false)
+        .resizable(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .build()?;
+    Ok(())
+}
 
 /// True while the orb is open with no files yet. The user may switch to a file manager
 /// to start dragging, so the orb must not hide on blur in this state.

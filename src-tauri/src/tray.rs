@@ -4,7 +4,7 @@ use tauri::{
     AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder,
 };
 
-use crate::overlay;
+use crate::orb;
 
 pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open_orb", "Open orb", true, None::<&str>)?;
@@ -29,13 +29,11 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
-            "open_orb" => {
-                let _ = overlay::show_at_cursor(app, None);
-            }
-            // Until real drops land (step 3), this shows the radial menu with made-up files.
+            "open_orb" => orb::show_at_cursor(app, None),
+            // Shows the radial menu with made-up files, for trying the UI without dragging.
             "preview_orb" => {
                 let sample = ["holiday.png", "clip.mp4", "song.mp3", "notes.pdf", "report.docx"];
-                let _ = overlay::show_at_cursor(app, Some(sample.map(String::from).to_vec()));
+                orb::show_at_cursor(app, Some(sample.map(String::from).to_vec()));
             }
             "settings" => show_settings(app),
             "quit" => app.exit(0),
