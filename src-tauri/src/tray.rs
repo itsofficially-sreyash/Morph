@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder,
 };
 
 use crate::overlay;
@@ -55,10 +55,24 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     Ok(())
 }
 
+pub const SETTINGS_LABEL: &str = "main";
+
+/// Opens (or focuses) the settings window. It is created on demand and destroyed when
+/// closed, so its web page process isn't kept alive while Morph sits in the tray.
 pub fn show_settings<R: Runtime>(app: &AppHandle<R>) {
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+        return;
+    }
+    let built = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("/".into()))
+        .title("Morph Settings")
+        .inner_size(560.0, 520.0)
+        .resizable(false)
+        .center()
+        .build();
+    if let Err(e) = built {
+        eprintln!("settings window: {e}");
     }
 }

@@ -60,11 +60,14 @@
 </script>
 
 {#key animationKey}
+  <!-- Scales to the window instead of assuming 380 CSS px: Windows "Text size" (and zoom)
+       shrink the page's CSS viewport, which used to clip the ring's right and bottom edges. -->
   <svg
     class="ring"
     viewBox="0 0 {SIZE} {SIZE}"
-    width={SIZE}
-    height={SIZE}
+    width="100%"
+    height="100%"
+    preserveAspectRatio="xMidYMid meet"
     role="menu"
     aria-label={title}
   >

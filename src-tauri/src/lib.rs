@@ -45,11 +45,8 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            // Closing the settings window hides it; Morph keeps running in the tray.
-            WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
-                api.prevent_close();
-                let _ = window.hide();
-            }
+            // Closing the settings window destroys it (see `tray::show_settings`); the
+            // run loop below keeps Morph alive in the tray.
             // Clicking outside the orb dismisses it, except while it waits for a drop.
             WindowEvent::Focused(false) if window.label() == overlay::LABEL && overlay::hides_on_blur() => {
                 overlay::hide(window.app_handle());

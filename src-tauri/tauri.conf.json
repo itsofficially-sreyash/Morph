@@ -12,15 +12,6 @@
   "app": {
     "windows": [
       {
-        "label": "main",
-        "title": "Morph Settings",
-        "width": 560,
-        "height": 520,
-        "resizable": false,
-        "visible": false,
-        "center": true
-      },
-      {
         "label": "overlay",
         "title": "Morph",
         "url": "/overlay",
