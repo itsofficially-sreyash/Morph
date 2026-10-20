@@ -4,4 +4,5 @@ export interface Settings {
   hotkey: string;
   naming_pattern: string;
   overwrite: "ask" | "rename";
+  start_at_login: boolean;
 }

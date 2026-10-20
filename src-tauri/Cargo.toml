@@ -27,13 +27,16 @@ serde_json = "1"
 tiny-skia = "0.11"
 ab_glyph = "0.2"
 # Image engine: only the formats Morph reads/writes, and no rayon (Morph controls its own threads).
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff", "gif", "ico"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff", "gif", "ico", "pnm"] }
 # File type detection by magic bytes.
 infer = "0.19"
+# PDF merge/split/rotate/shrink in-process (MIT), so no qpdf to bundle.
+lopdf = "0.38"
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
 
 # Native orb window on Windows (same version Tauri already pulls in).
 [target.'cfg(windows)'.dependencies]
@@ -50,8 +53,15 @@ windows = { version = "0.62", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
+  # PDF → images with Windows' built-in renderer.
+  "Win32_System_WinRT",
+  "Data_Pdf",
+  "Foundation",
+  "Storage",
+  "Storage_Streams",
 ] }
 windows-core = "0.62"
+windows-future = "0.3"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

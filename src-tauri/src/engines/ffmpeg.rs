@@ -85,7 +85,8 @@ mod tests {
     #[test]
     fn every_ffmpeg_action_in_the_registry_has_options() {
         use crate::actions::{Engine, CATEGORIES};
-        for c in CATEGORIES {
+        // Image actions that use FFmpeg (AVIF) go through `engines::image` instead.
+        for c in CATEGORIES.iter().filter(|c| matches!(c.id, CategoryId::Video | CategoryId::Audio)) {
             for act in c.actions {
                 if act.engine == Engine::External(Tool::Ffmpeg) {
                     assert!(options(c.id, act.id).is_ok(), "{:?} {} has no FFmpeg options", c.id, act.id);

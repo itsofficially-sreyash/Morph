@@ -67,6 +67,11 @@
         </select>
       </label>
 
+      <label class="check">
+        <input type="checkbox" bind:checked={settings.start_at_login} />
+        <span>Start Morph when I sign in</span>
+      </label>
+
       <footer>
         {#if status}
           <span class="status {status.kind}">{status.text}</span>
@@ -147,6 +152,14 @@
   label > span {
     font-weight: 600;
     margin-bottom: 4px;
+  }
+  label.check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  label.check > span {
+    margin: 0;
   }
   input,
   select {

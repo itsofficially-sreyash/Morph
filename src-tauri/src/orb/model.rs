@@ -1,7 +1,7 @@
 //! What the orb shows and how it reacts to input, independent of any window or renderer.
 //! The web orb (`src/routes/overlay/+page.svelte`) follows the same rules.
 
-use crate::actions::{self as catalog, Category, CategoryId};
+use crate::actions::{self as catalog, Category, CategoryId, ToolKind};
 use crate::jobs::Answer;
 
 /// One slice of the ring.
@@ -34,6 +34,8 @@ pub enum Outcome {
     Redraw { new_ring: bool },
     /// Start this job; the orb now shows "Working…".
     Chosen { category: CategoryId, action: &'static str, files: Vec<String> },
+    /// This action needs more input: close the orb and open its window.
+    OpenTool { kind: ToolKind, category: CategoryId, action: &'static str, files: Vec<String> },
     /// The user answered the "already exists" question.
     Answered(Answer),
     Close,
@@ -153,14 +155,21 @@ impl Menu {
             Status::Idle => {}
         }
         match self.current() {
-            Some(c) => c
-                .actions
-                .iter()
-                .map(|a| match catalog::availability(a) {
-                    Ok(()) => Item { label: a.label, hint: a.hint.to_string(), hue: c.hue, enabled: true },
-                    Err(why) => Item { label: a.label, hint: why.to_string(), hue: c.hue, enabled: false },
-                })
-                .collect(),
+            Some(c) => {
+                let matching = self.files.iter().flatten().filter(|f| c.accepts(f)).count();
+                c.actions
+                    .iter()
+                    .map(|a| {
+                        let ready = catalog::availability(a)
+                            .map_err(str::to_string)
+                            .and_then(|_| catalog::enough_files(c, a, matching));
+                        match ready {
+                            Ok(()) => Item { label: a.label, hint: a.hint.to_string(), hue: c.hue, enabled: true },
+                            Err(why) => Item { label: a.label, hint: why, hue: c.hue, enabled: false },
+                        }
+                    })
+                    .collect()
+            }
             None => self
                 .available()
                 .iter()
@@ -259,6 +268,9 @@ impl Menu {
         }
         let action = &c.actions[index];
         let files: Vec<String> = self.files.iter().flatten().filter(|f| c.accepts(f)).cloned().collect();
+        if let Some(kind) = action.window {
+            return Outcome::OpenTool { kind, category: c.id, action: action.id, files };
+        }
         self.status = Status::Working(format!("{}…", action.hint));
         self.active = None;
         Outcome::Chosen { category: c.id, action: action.id, files }
@@ -375,14 +387,33 @@ mod tests {
     }
 
     #[test]
-    fn disabled_actions_explain_themselves_instead_of_running() {
+    fn merge_is_dimmed_with_one_pdf_and_opens_a_window_with_two() {
+        let mut m = Menu::default();
+        m.reset(files(&["a.pdf"]));
+        let merge = labels(&m).iter().position(|&l| l == "Merge").unwrap();
+        assert!(!m.items()[merge].enabled);
+        assert_eq!(m.pick(merge), Outcome::Redraw { new_ring: false });
+        assert_eq!(m.subtitle(), "Drop 2 or more PDF files");
+        assert!(!m.is_busy());
+
+        m.reset(files(&["b.pdf", "a.pdf"]));
+        assert_eq!(
+            m.pick(merge),
+            Outcome::OpenTool {
+                kind: ToolKind::Merge,
+                category: CategoryId::Pdf,
+                action: "merge",
+                files: vec!["b.pdf".into(), "a.pdf".into()]
+            }
+        );
+    }
+
+    #[test]
+    fn crop_opens_its_window() {
         let mut m = Menu::default();
         m.reset(files(&["a.png"]));
         let crop = labels(&m).iter().position(|&l| l == "Crop").unwrap();
-        assert!(!m.items()[crop].enabled);
-        assert_eq!(m.pick(crop), Outcome::Redraw { new_ring: false });
-        assert_eq!(m.subtitle(), "Coming soon");
-        assert!(!m.is_busy());
+        assert!(matches!(m.pick(crop), Outcome::OpenTool { kind: ToolKind::Crop, .. }));
     }
 
     #[test]

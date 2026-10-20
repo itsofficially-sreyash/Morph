@@ -1,4 +1,6 @@
 mod actions;
+mod autostart;
+mod b64;
 mod cli;
 mod detect;
 mod engines;
@@ -8,6 +10,7 @@ mod orb;
 mod overlay;
 mod settings;
 mod tools;
+mod toolwin;
 mod tray;
 
 use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
@@ -39,13 +42,19 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(hotkey::plugin())
+        .plugin(autostart::plugin())
         .manage(hotkey::HotkeyState::default())
+        .manage(toolwin::ToolState::default())
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
             settings::set_settings,
             overlay::hide_overlay,
             hotkey::hotkey_status,
-            jobs::run_action
+            jobs::run_action,
+            toolwin::tool_info,
+            toolwin::tool_parse_ranges,
+            toolwin::tool_preview,
+            toolwin::tool_run
         ])
         .setup(|app| {
             tray::create(app.handle())?;
@@ -58,6 +67,10 @@ pub fn run() {
             let saved = settings::load(app.handle());
             if let Err(e) = hotkey::apply(app.handle(), &saved.hotkey) {
                 eprintln!("hotkey: {e}");
+            }
+            // Keeps the sign-in entry pointing at this executable (e.g. after an update).
+            if let Err(e) = autostart::apply(app.handle(), saved.start_at_login) {
+                eprintln!("autostart: {e}");
             }
             // The first launch can carry a command too (e.g. right-click while Morph isn't running).
             let args: Vec<String> = std::env::args().collect();
@@ -74,6 +87,9 @@ pub fn run() {
             }
             WindowEvent::DragDrop(drag) if window.label() == overlay::LABEL => {
                 overlay::on_drag_drop(window, drag);
+            }
+            WindowEvent::Destroyed if window.label().starts_with("tool-") => {
+                toolwin::closed(window.app_handle(), window.label());
             }
             _ => {}
         })

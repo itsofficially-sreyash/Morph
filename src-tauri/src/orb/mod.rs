@@ -15,16 +15,26 @@ use std::sync::OnceLock;
 
 use tauri::{AppHandle, Runtime};
 
+use crate::actions::{CategoryId, ToolKind};
 use crate::jobs::{self, Request};
 
 type Starter = Box<dyn Fn(u64, Request) + Send + Sync>;
+type Opener = Box<dyn Fn(ToolKind, CategoryId, &'static str, Vec<String>) + Send + Sync>;
 
 /// Set once at startup by `init`; the native orb calls it when an action is chosen.
 static STARTER: OnceLock<Starter> = OnceLock::new();
+/// Opens the window for actions that need more input (Merge, Split, Resize, Crop).
+static OPENER: OnceLock<Opener> = OnceLock::new();
 
 /// Connects the orb to the job runner. Jobs run on a worker thread; their questions and
 /// results come back to the main thread, where the orb window lives.
 pub fn init<R: Runtime>(app: &AppHandle<R>) {
+    let opener_app = app.clone();
+    let _ = OPENER.set(Box::new(move |kind, category, action, files| {
+        // Queued, so the window is built after the orb's input handling has finished.
+        let app = opener_app.clone();
+        let _ = opener_app.run_on_main_thread(move || crate::toolwin::open(&app, kind, category, action, files));
+    }));
     let app = app.clone();
     let _ = STARTER.set(Box::new(move |job, req| {
         let ask_app = app.clone();
@@ -56,6 +66,14 @@ fn start_job(job: u64, req: Request) {
     match STARTER.get() {
         Some(start) => start(job, req),
         None => eprintln!("orb: job runner not initialised"),
+    }
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+fn open_tool(kind: ToolKind, category: CategoryId, action: &'static str, files: Vec<String>) {
+    match OPENER.get() {
+        Some(open) => open(kind, category, action, files),
+        None => eprintln!("orb: tool windows not initialised"),
     }
 }
 

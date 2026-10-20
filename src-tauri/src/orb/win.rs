@@ -207,8 +207,13 @@ impl Orb {
             Outcome::Chosen { category, action, files } => {
                 self.job += 1;
                 self.paint();
-                super::start_job(self.job, Request { category, action, files });
+                super::start_job(self.job, Request { category, action, files, params: Default::default() });
                 false
+            }
+            Outcome::OpenTool { kind, category, action, files } => {
+                // The window takes over; the orb closes.
+                super::open_tool(kind, category, action, files);
+                true
             }
             Outcome::Answered(answer) => {
                 if let Some(tx) = self.pending_answer.take() {

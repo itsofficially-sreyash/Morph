@@ -16,13 +16,16 @@ use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
 use crate::actions::{self, CategoryId};
-use crate::engines::{self, Done};
+use crate::engines::{self, Done, Params};
 use crate::settings::{self, OverwritePolicy, Settings};
 
 pub struct Request {
     pub category: CategoryId,
     pub action: &'static str,
+    /// In the order to use (Merge keeps it).
     pub files: Vec<String>,
+    /// What a tool window collected (pages, size, crop area).
+    pub params: Params,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,11 +97,29 @@ fn temp_for(dest: &Path) -> PathBuf {
 struct Item {
     /// Input(s): one file, or all of them for combined actions.
     srcs: Vec<PathBuf>,
+    /// For actions that write several files, the base the pieces are named after.
     dest: PathBuf,
 }
 
+/// `report.converted.pdf` + "pages 1-3" → `report.converted - pages 1-3.pdf`.
+fn piece_name(base: &Path, label: &str) -> PathBuf {
+    let stem = base.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let ext = base.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    base.with_file_name(format!("{stem} - {label}{ext}"))
+}
+
 /// Chooses every destination up front so the overwrite question is asked at most once.
+/// Actions that write several files always pick free names (they never ask or replace).
 fn plan(settings: &Settings, req: &Request, inputs: &[PathBuf], ask: &dyn Fn(String) -> Answer) -> Vec<Item> {
+    if engines::is_multi(req.category, req.action) {
+        return inputs
+            .iter()
+            .map(|src| {
+                let ext = engines::output_ext(req.category, req.action, src);
+                Item { srcs: vec![src.clone()], dest: settings.output_path(src, &ext) }
+            })
+            .collect();
+    }
     let wanted: Vec<(Vec<PathBuf>, PathBuf)> = if engines::is_combined(req.category, req.action) {
         let ext = engines::output_ext(req.category, req.action, &inputs[0]);
         vec![(inputs.to_vec(), settings.output_path(&inputs[0], &ext))]
@@ -138,17 +159,56 @@ fn plan(settings: &Settings, req: &Request, inputs: &[PathBuf], ask: &dyn Fn(Str
 
 enum Result1 {
     Saved(PathBuf),
+    SavedMany(Vec<PathBuf>),
     NotSmaller(PathBuf),
     Failed(String),
 }
 
+/// Several outputs: each is written to a temp name, and all are renamed into place only
+/// if every piece succeeded.
+fn execute_multi(req: &Request, item: &Item) -> Result1 {
+    let pieces: std::cell::RefCell<Vec<(PathBuf, PathBuf)>> = Default::default();
+    let dst_for = |label: &str| {
+        let mut pieces = pieces.borrow_mut();
+        let taken: HashSet<PathBuf> = pieces.iter().map(|(_, f)| f.clone()).collect();
+        let wanted = piece_name(&item.dest, label);
+        let final_path = if wanted.exists() || taken.contains(&wanted) { unique(&wanted, &taken) } else { wanted };
+        let tmp = temp_for(&final_path);
+        pieces.push((tmp.clone(), final_path));
+        tmp
+    };
+    let outcome = engines::run_multi(req.category, req.action, &item.srcs[0], &req.params, &dst_for);
+    let pieces = pieces.into_inner();
+    let cleanup = |pieces: &[(PathBuf, PathBuf)]| pieces.iter().for_each(|(tmp, _)| drop(std::fs::remove_file(tmp)));
+    match outcome {
+        Ok(_) => {
+            let mut saved = Vec::new();
+            for (tmp, final_path) in &pieces {
+                if let Err(e) = std::fs::rename(tmp, final_path) {
+                    cleanup(&pieces);
+                    return Result1::Failed(format!("Couldn't save {}: {e}", engines::name(final_path)));
+                }
+                saved.push(final_path.clone());
+            }
+            Result1::SavedMany(saved)
+        }
+        Err(e) => {
+            cleanup(&pieces);
+            Result1::Failed(e)
+        }
+    }
+}
+
 fn execute(req: &Request, item: &Item) -> Result1 {
     let _permit = Permit::acquire();
+    if engines::is_multi(req.category, req.action) {
+        return execute_multi(req, item);
+    }
     let tmp = temp_for(&item.dest);
     let outcome = if engines::is_combined(req.category, req.action) {
         engines::run_combined(req.category, req.action, &item.srcs, &tmp).map(|_| Done::Saved)
     } else {
-        engines::run_one(req.category, req.action, &item.srcs[0], &tmp)
+        engines::run_one(req.category, req.action, &item.srcs[0], &tmp, &req.params)
     };
     match outcome {
         Ok(Done::Saved) => match std::fs::rename(&tmp, &item.dest) {
@@ -176,6 +236,7 @@ fn summarize(results: Vec<Result1>) -> Summary {
     for r in results {
         match r {
             Result1::Saved(p) => saved.push(p),
+            Result1::SavedMany(ps) => saved.extend(ps),
             Result1::NotSmaller(p) => not_smaller.push(p),
             Result1::Failed(e) => failed.push(e),
         }
@@ -218,6 +279,9 @@ pub fn run(settings: &Settings, req: &Request, ask: &dyn Fn(String) -> Answer) -
     let inputs: Vec<PathBuf> = req.files.iter().filter(|f| category.accepts(f)).map(PathBuf::from).collect();
     if inputs.is_empty() {
         return Summary::failed(format!("None of these files are {} files", category.label.to_lowercase()));
+    }
+    if let Err(why) = actions::enough_files(category, action, inputs.len()) {
+        return Summary::failed(why);
     }
     let items = plan(settings, req, &inputs, ask);
 
@@ -263,11 +327,17 @@ pub fn start<R: Runtime>(
 /// For the web orb (Linux): runs an action and returns the summary. Existing outputs are
 /// kept (Keep both) because the web orb can't ask yet.
 #[tauri::command]
-pub async fn run_action(app: AppHandle, category: String, action: String, files: Vec<String>) -> Result<Summary, String> {
+pub async fn run_action(
+    app: AppHandle,
+    category: String,
+    action: String,
+    files: Vec<String>,
+    params: Option<Params>,
+) -> Result<Summary, String> {
     let id = CategoryId::parse(&category).ok_or_else(|| format!("Unknown category {category}"))?;
     let action = actions::category(id).action(&action).ok_or_else(|| format!("Unknown action {action}"))?.id;
     let settings = settings::load(&app);
-    let req = Request { category: id, action, files };
+    let req = Request { category: id, action, files, params: params.unwrap_or_default() };
     tauri::async_runtime::spawn_blocking(move || run(&settings, &req, &|_| Answer::KeepBoth))
         .await
         .map_err(|e| e.to_string())
@@ -287,7 +357,64 @@ mod tests {
     }
 
     fn req(category: CategoryId, action: &'static str, files: &[&Path]) -> Request {
-        Request { category, action, files: files.iter().map(|p| p.to_string_lossy().into_owned()).collect() }
+        req_with(category, action, files, Params::None)
+    }
+
+    fn req_with(category: CategoryId, action: &'static str, files: &[&Path], params: Params) -> Request {
+        Request { category, action, files: files.iter().map(|p| p.to_string_lossy().into_owned()).collect(), params }
+    }
+
+    fn pdf_with_pages(d: &Path, name: &str, pages: usize) -> PathBuf {
+        let imgs: Vec<PathBuf> = (0..pages).map(|i| sample(d, &format!("{name}-{i}.png"), false)).collect();
+        let p = d.join(name);
+        crate::engines::pdf::images_to_pdf(&imgs, &p).unwrap();
+        p
+    }
+
+    #[test]
+    fn merge_follows_the_given_order_next_to_the_first_file() {
+        let d = fresh_dir("merge");
+        let a = pdf_with_pages(&d, "a.pdf", 1);
+        let b = pdf_with_pages(&d, "b.pdf", 2);
+        let s = run(&Settings::default(), &req(CategoryId::Pdf, "merge", &[&b, &a]), &never_ask);
+        assert!(s.ok, "{}", s.message);
+        assert_eq!(s.message, "Saved b.converted.pdf");
+        assert_eq!(crate::engines::pdf_tools::page_count(&d.join("b.converted.pdf")).unwrap(), 3);
+        let one = run(&Settings::default(), &req(CategoryId::Pdf, "merge", &[&a]), &never_ask);
+        assert_eq!((one.ok, one.message.as_str()), (false, "Drop 2 or more PDF files"));
+    }
+
+    #[test]
+    fn split_names_each_piece_and_never_replaces() {
+        let d = fresh_dir("split");
+        let src = pdf_with_pages(&d, "report.pdf", 4);
+        // An old piece with the same name must survive.
+        std::fs::write(d.join("report.converted - page 4.pdf"), b"old").unwrap();
+        let params = Params::Split { ranges: vec![(1, 3), (4, 4)] };
+        let s = run(&Settings::default(), &req_with(CategoryId::Pdf, "split", &[&src], params), &never_ask);
+        assert!(s.ok, "{}", s.message);
+        assert_eq!(s.message, "Saved 2 files");
+        assert!(d.join("report.converted - pages 1-3.pdf").is_file());
+        assert!(d.join("report.converted - page 4 (2).pdf").is_file());
+        assert_eq!(std::fs::read(d.join("report.converted - page 4.pdf")).unwrap(), b"old");
+    }
+
+    #[test]
+    fn resize_and_crop_keep_the_format_and_folder() {
+        let d = fresh_dir("edit");
+        let src = sample(&d, "pic.png", true);
+        let s = run(
+            &Settings::default(),
+            &req_with(CategoryId::Image, "resize", &[&src], Params::Resize { percent: Some(50.0), width: None, height: None }),
+            &never_ask,
+        );
+        assert!(s.ok, "{}", s.message);
+        assert_eq!(image::image_dimensions(d.join("pic.converted.png")).unwrap(), (60, 40));
+        let crop = Params::Crop { x: 10, y: 10, width: 500, height: 20 };
+        let s = run(&Settings::default(), &req_with(CategoryId::Image, "crop", &[&src], crop), &|_| Answer::KeepBoth);
+        assert!(s.ok, "{}", s.message);
+        // Width is clamped to the image (120 - 10).
+        assert_eq!(image::image_dimensions(d.join("pic.converted (2).png")).unwrap(), (110, 20));
     }
 
     fn never_ask(_: String) -> Answer {
@@ -398,11 +525,13 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_and_unrelated_requests_fail_cleanly() {
+    fn incomplete_and_unrelated_requests_fail_cleanly() {
         let d = fresh_dir("unavailable");
         let a = sample(&d, "a.png", false);
+        // Crop without the area its window collects.
         let s = run(&Settings::default(), &req(CategoryId::Image, "crop", &[&a]), &never_ask);
-        assert_eq!((s.ok, s.message.as_str()), (false, "Coming soon"));
+        assert_eq!((s.ok, s.message.as_str()), (false, "crop needs its window"));
+        assert!(!d.join("a.converted.png").exists());
         let s = run(&Settings::default(), &req(CategoryId::Image, "convert:jpg", &[Path::new("song.mp3")]), &never_ask);
         assert!(!s.ok && s.message.contains("image"), "{}", s.message);
     }

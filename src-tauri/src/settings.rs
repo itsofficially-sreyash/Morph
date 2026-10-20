@@ -26,6 +26,8 @@ pub struct Settings {
     /// name only; folder separators are rejected.
     pub naming_pattern: String,
     pub overwrite: OverwritePolicy,
+    /// Start Morph (quietly, in the tray) when the user signs in. On by default (owner rule).
+    pub start_at_login: bool,
 }
 
 impl Default for Settings {
@@ -35,6 +37,7 @@ impl Default for Settings {
             naming_pattern: "{name}.converted.{ext}".into(),
             // AGENTS.md rule 3: never overwrite without asking.
             overwrite: OverwritePolicy::Ask,
+            start_at_login: true,
         }
     }
 }
@@ -89,6 +92,7 @@ pub fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings, Stri
     settings.validate()?;
     // Switch the hotkey first: if it can't be registered, nothing is saved and the old one keeps working.
     crate::hotkey::apply(&app, &settings.hotkey)?;
+    crate::autostart::apply(&app, settings.start_at_login)?;
     save(&app, &settings)?;
     Ok(settings)
 }

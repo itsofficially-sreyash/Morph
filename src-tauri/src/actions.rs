@@ -17,11 +17,29 @@ pub enum CategoryId {
 /// Who does the work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Engine {
-    /// In-process Rust (`engines::image`), always available.
+    /// In-process Rust image work (`engines::image`), always available.
     Image,
+    /// In-process PDF tools (`engines::pdf_tools`), always available.
+    Pdf,
+    /// The OS's PDF renderer (`engines::pdf_render`).
+    PdfRender,
+    /// Microsoft Office or LibreOffice, whichever is installed (`engines::office`).
+    Office,
     External(Tool),
-    /// Needs a parameter popover (step 5) or an engine that doesn't exist yet.
-    NotYet,
+}
+
+/// Actions that need more input than a click open a small window first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolKind {
+    /// Order the PDFs, then merge.
+    Merge,
+    /// Every page, or custom ranges like "1-3, 5".
+    Split,
+    /// Width × height or a percentage.
+    Resize,
+    /// Drag a box over the image.
+    Crop,
 }
 
 #[derive(Debug)]
@@ -30,6 +48,9 @@ pub struct Action {
     pub label: &'static str,
     pub hint: &'static str,
     pub engine: Engine,
+    pub window: Option<ToolKind>,
+    /// How many matching files the action needs (Merge: 2).
+    pub min_files: usize,
 }
 
 #[derive(Debug)]
@@ -43,13 +64,17 @@ pub struct Category {
 }
 
 const fn act(id: &'static str, label: &'static str, hint: &'static str, engine: Engine) -> Action {
-    Action { id, label, hint, engine }
+    Action { id, label, hint, engine, window: None, min_files: 1 }
+}
+
+const fn tool(id: &'static str, label: &'static str, hint: &'static str, engine: Engine, kind: ToolKind) -> Action {
+    Action { id, label, hint, engine, window: Some(kind), min_files: 1 }
 }
 
 const IMG: Engine = Engine::Image;
+const PDF: Engine = Engine::Pdf;
 const FF: Engine = Engine::External(Tool::Ffmpeg);
-const LO: Engine = Engine::External(Tool::LibreOffice);
-const SOON: Engine = Engine::NotYet;
+const OFFICE: Engine = Engine::Office;
 
 pub static CATEGORIES: &[Category] = &[
     Category {
@@ -61,9 +86,9 @@ pub static CATEGORIES: &[Category] = &[
             act("convert:png", "PNG", "Convert to PNG", IMG),
             act("convert:jpg", "JPG", "Convert to JPG", IMG),
             act("convert:webp", "WEBP", "Convert to WEBP", IMG),
-            act("convert:avif", "AVIF", "Convert to AVIF", SOON),
-            act("resize", "Resize", "Resize by width or percentage", SOON),
-            act("crop", "Crop", "Crop to a region", SOON),
+            act("convert:avif", "AVIF", "Convert to AVIF", FF),
+            tool("resize", "Resize", "Resize by size or percentage", IMG, ToolKind::Resize),
+            tool("crop", "Crop", "Crop to a region you draw", IMG, ToolKind::Crop),
             act("compress", "Shrink", "Compress to a smaller file", IMG),
             act("to-pdf", "PDF", "Put images into one PDF", IMG),
         ],
@@ -77,7 +102,6 @@ pub static CATEGORIES: &[Category] = &[
             act("convert:mp4", "MP4", "Convert to MP4", FF),
             act("convert:webm", "WEBM", "Convert to WEBM", FF),
             act("convert:gif", "GIF", "Convert to GIF", FF),
-            act("trim", "Trim", "Cut the start or end", SOON),
             act("compress", "Shrink", "Compress with a quality preset", FF),
             act("extract-audio", "Audio", "Extract the soundtrack", FF),
             act("mute", "Mute", "Remove the sound", FF),
@@ -93,7 +117,6 @@ pub static CATEGORIES: &[Category] = &[
             act("convert:wav", "WAV", "Convert to WAV", FF),
             act("convert:flac", "FLAC", "Convert to FLAC", FF),
             act("convert:m4a", "M4A", "Convert to M4A", FF),
-            act("trim", "Trim", "Cut the start or end", SOON),
             act("normalize", "Level", "Normalize loudness", FF),
         ],
     },
@@ -102,13 +125,12 @@ pub static CATEGORIES: &[Category] = &[
         label: "PDF",
         hue: 12.0,
         extensions: &["pdf"],
-        // The PDF engine (qpdf sidecar) arrives with packaging; until then these are honest "soon"s.
         actions: &[
-            act("merge", "Merge", "Combine into one PDF", SOON),
-            act("split", "Split", "One PDF per page", SOON),
-            act("compress", "Shrink", "Compress images inside", SOON),
-            act("to-images", "Images", "Export each page as PNG", SOON),
-            act("rotate", "Rotate", "Rotate all pages 90°", SOON),
+            Action { min_files: 2, ..tool("merge", "Merge", "Combine PDFs in the order you choose", PDF, ToolKind::Merge) },
+            tool("split", "Split", "Every page, or ranges like 1-3, 5", PDF, ToolKind::Split),
+            act("compress", "Shrink", "Make the file smaller (lossless)", PDF),
+            act("to-images", "Images", "Save each page as a PNG", Engine::PdfRender),
+            act("rotate", "Rotate", "Rotate all pages 90°", PDF),
         ],
     },
     Category {
@@ -117,10 +139,10 @@ pub static CATEGORIES: &[Category] = &[
         hue: 210.0,
         extensions: &["docx", "doc", "odt", "pptx", "ppt", "odp", "xlsx", "xls", "ods", "rtf", "txt"],
         actions: &[
-            act("to-pdf", "PDF", "Export as PDF", LO),
-            act("convert:docx", "DOCX", "Convert to DOCX", LO),
-            act("convert:odt", "ODT", "Convert to ODT", LO),
-            act("convert:txt", "TXT", "Convert to TXT", LO),
+            act("to-pdf", "PDF", "Save as PDF", OFFICE),
+            act("convert:docx", "DOCX", "Save as a Word document", OFFICE),
+            act("convert:odt", "ODT", "Save as OpenDocument text", OFFICE),
+            act("convert:txt", "TXT", "Save as plain text", OFFICE),
         ],
     },
 ];
@@ -162,12 +184,22 @@ pub fn categories_for(files: &[String]) -> Vec<&'static Category> {
 /// `Ok` if the action can run on this machine now, otherwise the reason (shown in the orb).
 pub fn availability(action: &Action) -> Result<(), &'static str> {
     match action.engine {
-        Engine::Image => Ok(()),
-        Engine::NotYet => Err("Coming soon"),
+        Engine::Image | Engine::Pdf => Ok(()),
+        Engine::PdfRender => crate::engines::pdf_render::available(),
+        Engine::Office => crate::engines::office::available(),
         Engine::External(tool) if tool.find().is_some() => Ok(()),
         Engine::External(Tool::Ffmpeg) => Err("Needs FFmpeg (included in the installer)"),
-        Engine::External(Tool::Qpdf) => Err("Needs qpdf (included in the installer)"),
+        Engine::External(Tool::Qpdf) => Err("Needs qpdf"),
         Engine::External(Tool::LibreOffice) => Err("Install LibreOffice to enable"),
+    }
+}
+
+/// `Ok` if there are enough matching files for the action, otherwise what's missing.
+pub fn enough_files(category: &Category, action: &Action, matching: usize) -> Result<(), String> {
+    if matching >= action.min_files {
+        Ok(())
+    } else {
+        Err(format!("Drop {} or more {} files", action.min_files, category.label))
     }
 }
 
@@ -191,12 +223,29 @@ mod tests {
     }
 
     #[test]
-    fn image_actions_are_always_available() {
+    fn in_process_actions_are_always_available() {
         let img = category(CategoryId::Image);
-        for id in ["convert:png", "convert:jpg", "convert:webp", "compress", "to-pdf"] {
+        for id in ["convert:png", "convert:jpg", "convert:webp", "compress", "to-pdf", "resize", "crop"] {
             assert_eq!(availability(img.action(id).unwrap()), Ok(()), "{id}");
         }
-        assert_eq!(availability(img.action("crop").unwrap()), Err("Coming soon"));
+        let pdf = category(CategoryId::Pdf);
+        for id in ["merge", "split", "compress", "rotate"] {
+            assert_eq!(availability(pdf.action(id).unwrap()), Ok(()), "{id}");
+        }
+    }
+
+    #[test]
+    fn merge_needs_two_pdfs() {
+        let pdf = category(CategoryId::Pdf);
+        let merge = pdf.action("merge").unwrap();
+        assert_eq!(enough_files(pdf, merge, 1), Err("Drop 2 or more PDF files".into()));
+        assert!(enough_files(pdf, merge, 2).is_ok());
+        assert_eq!(merge.window, Some(ToolKind::Merge));
+    }
+
+    #[test]
+    fn no_trim_anywhere() {
+        assert!(CATEGORIES.iter().flat_map(|c| c.actions).all(|a| a.id != "trim"));
     }
 
     #[test]
