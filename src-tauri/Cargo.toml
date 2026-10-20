@@ -26,6 +26,10 @@ serde_json = "1"
 # Native orb: CPU rendering (no GPU context, so nothing wakes the driver while idle).
 tiny-skia = "0.11"
 ab_glyph = "0.2"
+# Image engine: only the formats Morph reads/writes, and no rayon (Morph controls its own threads).
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "tiff", "gif", "ico"] }
+# File type detection by magic bytes.
+infer = "0.19"
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
@@ -41,6 +45,7 @@ windows = { version = "0.62", features = [
   "Win32_System_Ole",
   "Win32_System_Registry",
   "Win32_System_SystemServices",
+  "Win32_System_Threading",
   "Win32_UI_HiDpi",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",

@@ -6,6 +6,7 @@
 //! are kept so the next open is instant).
 
 use std::cell::RefCell;
+use std::sync::mpsc::Sender;
 use std::time::Instant;
 
 use tiny_skia::Pixmap;
@@ -43,14 +44,15 @@ const WM_MOUSELEAVE: u32 = 0x02A3;
 
 use super::geometry as g;
 use super::model::{Key, Menu, Outcome};
+use crate::jobs::{Answer, Request, Summary};
 use super::render::{self, Fonts};
 use crate::overlay::{place, Rect};
 
 const ANIM_TIMER: usize = 1;
 const DONE_TIMER: usize = 2;
 const OPEN_MS: f32 = 180.0;
-/// How long the ✓ confirmation stays before the orb closes.
-const DONE_MS: u32 = 900;
+/// How long "✓ Saved …" stays before the orb closes. Errors stay until dismissed.
+const DONE_MS: u32 = 1500;
 
 /// Device-pixel buffers, alive only while the orb is visible.
 struct Surface {
@@ -118,6 +120,11 @@ struct Orb {
     pos: (i32, i32),
     anim_start: Option<Instant>,
     tracking_leave: bool,
+    visible: bool,
+    /// A running job waits on this for the Replace / Keep both answer.
+    pending_answer: Option<Sender<Answer>>,
+    /// Id of the job this orb is showing; results of older jobs are ignored.
+    job: u64,
 }
 
 thread_local! {
@@ -197,11 +204,17 @@ impl Orb {
                 self.paint();
                 false
             }
-            Outcome::Chosen { category, action } => {
-                // Step 4 hands this to the job runner.
-                eprintln!("orb: chose {action} ({category:?})");
+            Outcome::Chosen { category, action, files } => {
+                self.job += 1;
                 self.paint();
-                unsafe { SetTimer(Some(self.hwnd), DONE_TIMER, DONE_MS, None) };
+                super::start_job(self.job, Request { category, action, files });
+                false
+            }
+            Outcome::Answered(answer) => {
+                if let Some(tx) = self.pending_answer.take() {
+                    let _ = tx.send(answer);
+                }
+                self.paint();
                 false
             }
             Outcome::Close => true,
@@ -256,7 +269,7 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
                 o.tracking_leave = unsafe { TrackMouseEvent(&mut tme) }.is_ok();
             }
             let (x, y) = o.logical(lparam);
-            if !o.menu.is_done() && o.menu.hover(g::hit_test(x, y, o.menu.items().len())) {
+            if o.menu.hover(g::hit_test(x, y, o.menu.items().len())) {
                 o.paint();
             }
         })
@@ -272,8 +285,8 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
             let mut p = POINT::default();
             unsafe { GetCursorPos(&mut p).ok() };
             let (x, y) = ((p.x - o.pos.0) as f32 / o.scale, (p.y - o.pos.1) as f32 / o.scale);
-            let clickable = (!o.menu.is_done() && g::hit_test(x, y, o.menu.items().len()).is_some())
-                || (g::in_hub(x, y) && o.menu.can_go_back());
+            let clickable = g::hit_test(x, y, o.menu.items().len()).is_some()
+                || (g::in_hub(x, y) && (o.menu.can_go_back() || o.menu.is_finished()));
             unsafe {
                 let _ = SetCursor(LoadCursorW(None, if clickable { IDC_HAND } else { IDC_ARROW }).ok());
             }
@@ -281,10 +294,13 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
         .is_some(),
         WM_LBUTTONDOWN => with_orb(|o| {
             let (x, y) = o.logical(lparam);
-            let outcome = if g::in_hub(x, y) {
+            let outcome = if o.menu.is_finished() {
+                // Any click on a finished orb dismisses it.
+                Outcome::Close
+            } else if g::in_hub(x, y) {
                 o.menu.back()
             } else if let Some(i) = g::hit_test(x, y, o.menu.items().len()) {
-                if o.menu.is_done() { Outcome::Unchanged } else { o.menu.pick(i) }
+                o.menu.pick(i)
             } else {
                 Outcome::Unchanged
             };
@@ -310,10 +326,10 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
             _ => {}
         })
         .is_some(),
-        // Clicking outside the orb dismisses it, except while it waits for a drop: the
-        // user has to click into a file manager to start dragging.
+        // Clicking outside the orb dismisses it, except while it waits for a drop (the
+        // user has to click into a file manager to start dragging) or a job is running.
         WM_ACTIVATE if (wparam.0 & 0xffff) as u32 == WA_INACTIVE => {
-            close = with_orb(|o| !o.menu.is_waiting_for_drop()).unwrap_or(false);
+            close = with_orb(|o| o.menu.hides_on_blur()).unwrap_or(false);
             true
         }
         WM_MOUSEACTIVATE => return LRESULT(MA_ACTIVATE as isize),
@@ -479,6 +495,9 @@ fn create() -> Option<Orb> {
             pos: (0, 0),
             anim_start: None,
             tracking_leave: false,
+            visible: false,
+            pending_answer: None,
+            job: 0,
         })
     }
 }
@@ -513,6 +532,9 @@ pub fn show(files: Option<Vec<String>>) {
         o.dark = apps_use_dark_theme();
         o.pos = place((cursor.x as f64, cursor.y as f64), o.size(), area);
         o.menu.reset(files);
+        // A fresh orb no longer shows any earlier job.
+        o.job += 1;
+        o.visible = true;
         o.animate();
         o.hwnd
     }) else {
@@ -536,6 +558,11 @@ pub fn hide() {
         // Free ~2 × (size² × 4) bytes of pixel buffers while idle.
         o.surface = None;
         o.menu.reset(None);
+        o.visible = false;
+        // Nobody can answer now: keep both (never overwrite without an answer).
+        if let Some(tx) = o.pending_answer.take() {
+            let _ = tx.send(Answer::KeepBoth);
+        }
         o.hwnd
     }) else {
         return;
@@ -547,4 +574,35 @@ pub fn hide() {
 
 pub fn is_visible() -> bool {
     with_orb(|o| unsafe { IsWindowVisible(o.hwnd) }.as_bool()).unwrap_or(false)
+}
+
+/// A job asks whether to replace existing outputs. Answered "Keep both" right away if
+/// the orb showing that job is gone.
+pub fn ask(job: u64, question: String, tx: Sender<Answer>) {
+    let shown = with_orb(|o| {
+        if !o.visible || o.job != job {
+            return false;
+        }
+        o.menu.ask(question.clone());
+        o.pending_answer = Some(tx.clone());
+        o.animate();
+        true
+    });
+    if shown != Some(true) {
+        let _ = tx.send(Answer::KeepBoth);
+    }
+}
+
+/// A job finished: show "✓ Saved …" (closes by itself) or the error (stays until dismissed).
+pub fn job_finished(job: u64, summary: Summary) {
+    with_orb(|o| {
+        if !o.visible || o.job != job {
+            return;
+        }
+        o.menu.finish(summary.ok, summary.message);
+        o.paint();
+        if summary.ok {
+            unsafe { SetTimer(Some(o.hwnd), DONE_TIMER, DONE_MS, None) };
+        }
+    });
 }

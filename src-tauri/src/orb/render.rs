@@ -311,17 +311,27 @@ pub fn render(pm: &mut Pixmap, menu: &Menu, scale: f32, open: f32, dark: bool, f
             xf
         };
         if let Some(path) = g::annular(g::R0, g::R1, s) {
-            let fill = if is_active { hsl(item.hue, 0.78, 0.58, 1.0) } else { hsl(item.hue, 0.55, pal.slice_l, pal.slice_a) };
+            // Unavailable actions are drawn washed out; highlighting one only shows its reason.
+            let fill = match (is_active, item.enabled) {
+                (true, true) => hsl(item.hue, 0.78, 0.58, 1.0),
+                (true, false) => hsl(item.hue, 0.18, if dark { 0.30 } else { 0.84 }, 1.0),
+                (false, true) => hsl(item.hue, 0.55, pal.slice_l, pal.slice_a),
+                (false, false) => hsl(item.hue, 0.10, pal.slice_l, pal.slice_a * 0.55),
+            };
             pm.fill_path(&path, &paint(faded(fill, alpha)), FillRule::Winding, slice_xf, None);
             let edge = hsl(item.hue, 0.70, 0.70, 0.18);
             pm.stroke_path(&path, &paint(faded(edge, alpha)), &Stroke::default(), slice_xf, None);
         }
         let (lx, ly) = g::polar(g::LABEL_R, s.mid);
-        let label_color = if is_active { Color::WHITE } else { pal.text };
+        let label_color = match (is_active, item.enabled) {
+            (true, true) => Color::WHITE,
+            (_, false) => pal.muted,
+            (false, true) => pal.text,
+        };
         text.draw(pm, Weight::Semibold, 13.0, item.label, lx, ly, label_color);
         if i < 9 {
             let (kx, ky) = g::polar(g::R1 - 13.0, s.mid);
-            let key_color = if is_active { rgba(255, 255, 255, 0.8) } else { pal.muted };
+            let key_color = if is_active && item.enabled { rgba(255, 255, 255, 0.8) } else { pal.muted };
             text.draw(pm, Weight::Regular, 9.0, &(i + 1).to_string(), kx, ky, key_color);
         }
     }
@@ -361,7 +371,7 @@ pub fn render(pm: &mut Pixmap, menu: &Menu, scale: f32, open: f32, dark: bool, f
         lines.push(Line { weight: Weight::Semibold, size: 10.0, text: "‹ back".into(), color: pal.accent, gap_before: 0.0 });
     }
     // The done state's ✓ is drawn as a shape: Segoe UI Bold has no check-mark glyph.
-    let check = menu.is_done();
+    let check = menu.shows_check();
     let title = if check { String::new() } else { text.ellipsize(Weight::Bold, 15.0, &menu.title(), g::HUB_TEXT_W) };
     let gap = if lines.is_empty() { 0.0 } else { GAP };
     lines.push(Line { weight: Weight::Bold, size: 15.0, text: title, color: pal.text, gap_before: gap });
@@ -451,6 +461,24 @@ mod tests {
                 Box::new(|m: &mut Menu| {
                     m.reset(Some(vec!["a.png".into()]));
                     m.pick(2);
+                    m.finish(true, "Saved a.converted.webp".into());
+                }),
+                true,
+            ),
+            (
+                "unavailable-hover-dark",
+                Box::new(|m: &mut Menu| {
+                    m.reset(Some(vec!["a.png".into()]));
+                    m.pick(5); // Crop: not available yet
+                }),
+                true,
+            ),
+            (
+                "asking-dark",
+                Box::new(|m: &mut Menu| {
+                    m.reset(Some(vec!["a.png".into()]));
+                    m.pick(1);
+                    m.ask("a.converted.jpg already exists".into());
                 }),
                 true,
             ),

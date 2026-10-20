@@ -15,7 +15,10 @@
   let files = $state<string[] | null>(null);
   let dragging = $state(false);
   let category = $state<MenuCategory | null>(null);
-  let done = $state<string | null>(null);
+  // Same states as the native orb (src-tauri/src/orb/model.rs).
+  type Status = { kind: "idle" } | { kind: "working"; text: string } | { kind: "finished"; ok: boolean; message: string };
+  let status = $state<Status>({ kind: "idle" });
+  const done = $derived(status.kind !== "idle");
   let animationKey = $state(0);
   let menu = $state<ReturnType<typeof RadialMenu>>();
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
@@ -41,21 +44,39 @@
   });
 
   const title = $derived(
-    dragging ? "Let go" : done ? "✓" : files === null ? "Drop files" : (current?.label ?? "Morph"),
+    dragging
+      ? "Let go"
+      : status.kind === "working"
+        ? "Working…"
+        : status.kind === "finished"
+          ? status.ok
+            ? "✓"
+            : "Couldn't finish"
+          : files === null
+            ? "Drop files"
+            : (current?.label ?? "Morph"),
   );
   const subtitle = $derived(
     dragging
       ? files?.length
         ? "to add to these files"
         : "to open them in Morph"
-      : (done ?? (files === null ? "or press Esc" : available.length ? filesLine : "Nothing to convert")),
+      : status.kind === "working"
+        ? status.text
+        : status.kind === "finished"
+          ? status.message
+          : files === null
+            ? "or press Esc"
+            : available.length
+              ? filesLine
+              : "Nothing to convert",
   );
 
   function reset(next: string[] | null) {
     clearTimeout(hideTimer);
     files = next;
     category = null;
-    done = null;
+    status = { kind: "idle" };
     dragging = false;
     animationKey++;
   }
@@ -86,14 +107,32 @@
     invoke("hide_overlay");
   }
 
-  function pick(item: RingItem) {
+  async function pick(item: RingItem) {
     if (!current) {
       category = available.find((c) => c.id === item.id) ?? null;
       return;
     }
-    // Step 4 runs the real job; for now just confirm the choice.
-    done = `${item.hint} · preview`;
-    hideTimer = setTimeout(hide, 900);
+    const cat = current;
+    const relevant = (files ?? []).filter((f) => cat.extensions.includes(f.split(".").pop()?.toLowerCase() ?? ""));
+    status = { kind: "working", text: `${item.hint}…` };
+    let result: { ok: boolean; message: string };
+    if (inTauri) {
+      try {
+        // Rust picks the destination (always the original's folder) and runs the engine.
+        result = await invoke<{ ok: boolean; message: string }>("run_action", {
+          category: cat.id,
+          action: item.id,
+          files: relevant,
+        });
+      } catch (e) {
+        result = { ok: false, message: String(e) };
+      }
+    } else {
+      result = { ok: true, message: "Saved (browser preview, nothing written)" };
+    }
+    status = { kind: "finished", ...result };
+    // Success closes by itself; an error stays until dismissed.
+    if (result.ok) hideTimer = setTimeout(hide, 1500);
   }
 
   function back() {

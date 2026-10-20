@@ -1,8 +1,13 @@
+mod actions;
 mod cli;
+mod detect;
+mod engines;
 mod hotkey;
+mod jobs;
 mod orb;
 mod overlay;
 mod settings;
+mod tools;
 mod tray;
 
 use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
@@ -39,10 +44,12 @@ pub fn run() {
             settings::get_settings,
             settings::set_settings,
             overlay::hide_overlay,
-            hotkey::hotkey_status
+            hotkey::hotkey_status,
+            jobs::run_action
         ])
         .setup(|app| {
             tray::create(app.handle())?;
+            orb::init(app.handle());
             // Windows draws the orb natively (no WebView2 at idle); Linux keeps the web orb for now.
             #[cfg(not(windows))]
             overlay::create(app.handle())?;

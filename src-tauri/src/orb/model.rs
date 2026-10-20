@@ -1,14 +1,17 @@
 //! What the orb shows and how it reacts to input, independent of any window or renderer.
-//! Port of the logic in `src/routes/overlay/+page.svelte` + `RadialMenu.svelte`.
+//! The web orb (`src/routes/overlay/+page.svelte`) follows the same rules.
 
-use super::catalog::{self, Category};
+use crate::actions::{self as catalog, Category, CategoryId};
+use crate::jobs::Answer;
 
 /// One slice of the ring.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Item {
     pub label: &'static str,
+    /// Shown in the hub on hover. For a disabled item, the reason it can't run.
     pub hint: String,
     pub hue: f32,
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,9 +32,22 @@ pub enum Outcome {
     Unchanged,
     /// Repaint; a new ring appeared if `new_ring` (replay the opening animation).
     Redraw { new_ring: bool },
-    /// An action was chosen: show the confirmation, then close shortly after.
-    Chosen { category: catalog::CategoryId, action: &'static str },
+    /// Start this job; the orb now shows "Working…".
+    Chosen { category: CategoryId, action: &'static str, files: Vec<String> },
+    /// The user answered the "already exists" question.
+    Answered(Answer),
     Close,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+enum Status {
+    #[default]
+    Idle,
+    /// A job is running; the text is what it's doing.
+    Working(String),
+    /// A running job asks whether to replace existing outputs.
+    Asking(String),
+    Finished { ok: bool, message: String },
 }
 
 #[derive(Debug, Default)]
@@ -40,10 +56,15 @@ pub struct Menu {
     files: Option<Vec<String>>,
     /// Chosen category (index into `available()`), when there is more than one.
     category: Option<usize>,
-    done: Option<String>,
+    status: Status,
     dragging: bool,
     active: Option<usize>,
 }
+
+const ANSWERS: [(&str, &str, f32, Answer); 2] = [
+    ("Replace", "Overwrite the existing file(s)", 12.0, Answer::Replace),
+    ("Keep both", "Save as a new numbered copy", 172.0, Answer::KeepBoth),
+];
 
 impl Menu {
     pub fn reset(&mut self, files: Option<Vec<String>>) {
@@ -69,12 +90,37 @@ impl Menu {
         self.files.is_none()
     }
 
-    pub fn is_done(&self) -> bool {
-        self.done.is_some()
+    /// A job is running or asking a question.
+    pub fn is_busy(&self) -> bool {
+        matches!(self.status, Status::Working(_) | Status::Asking(_))
+    }
+
+    pub fn is_finished(&self) -> bool {
+        matches!(self.status, Status::Finished { .. })
+    }
+
+    pub fn succeeded(&self) -> bool {
+        matches!(self.status, Status::Finished { ok: true, .. })
+    }
+
+    /// Losing focus closes the orb, except while it waits for a drop (the user has to click
+    /// into a file manager to start dragging) or while a job is running.
+    pub fn hides_on_blur(&self) -> bool {
+        !self.is_waiting_for_drop() && !self.is_busy()
     }
 
     pub fn dragging(&self) -> bool {
         self.dragging
+    }
+
+    pub fn ask(&mut self, question: String) {
+        self.status = Status::Asking(question);
+        self.active = None;
+    }
+
+    pub fn finish(&mut self, ok: bool, message: String) {
+        self.status = Status::Finished { ok, message };
+        self.active = None;
     }
 
     fn available(&self) -> Vec<&'static Category> {
@@ -93,19 +139,32 @@ impl Menu {
     }
 
     pub fn items(&self) -> Vec<Item> {
-        if self.done.is_some() || self.dragging {
+        if self.dragging {
             return Vec::new();
+        }
+        match &self.status {
+            Status::Working(_) | Status::Finished { .. } => return Vec::new(),
+            Status::Asking(_) => {
+                return ANSWERS
+                    .iter()
+                    .map(|&(label, hint, hue, _)| Item { label, hint: hint.into(), hue, enabled: true })
+                    .collect();
+            }
+            Status::Idle => {}
         }
         match self.current() {
             Some(c) => c
                 .actions
                 .iter()
-                .map(|a| Item { label: a.label, hint: a.hint.to_string(), hue: c.hue })
+                .map(|a| match catalog::availability(a) {
+                    Ok(()) => Item { label: a.label, hint: a.hint.to_string(), hue: c.hue, enabled: true },
+                    Err(why) => Item { label: a.label, hint: why.to_string(), hue: c.hue, enabled: false },
+                })
                 .collect(),
             None => self
                 .available()
                 .iter()
-                .map(|c| Item { label: c.label, hint: format!("{} actions", c.actions.len()), hue: c.hue })
+                .map(|c| Item { label: c.label, hint: format!("{} actions", c.actions.len()), hue: c.hue, enabled: true })
                 .collect(),
         }
     }
@@ -115,15 +174,26 @@ impl Menu {
     }
 
     pub fn can_go_back(&self) -> bool {
-        self.category.is_some() && self.available().len() > 1 && self.done.is_none() && !self.dragging
+        self.category.is_some() && self.available().len() > 1 && self.status == Status::Idle && !self.dragging
+    }
+
+    /// The hub shows a drawn check mark instead of a title.
+    pub fn shows_check(&self) -> bool {
+        self.succeeded() && !self.dragging
     }
 
     pub fn title(&self) -> String {
         if self.dragging {
-            "Let go".into()
-        } else if self.done.is_some() {
-            "✓".into()
-        } else if self.files.is_none() {
+            return "Let go".into();
+        }
+        match &self.status {
+            Status::Working(_) => return "Working…".into(),
+            Status::Asking(_) => return "Already there".into(),
+            Status::Finished { ok: true, .. } => return "✓".into(),
+            Status::Finished { ok: false, .. } => return "Couldn't finish".into(),
+            Status::Idle => {}
+        }
+        if self.files.is_none() {
             "Drop files".into()
         } else {
             self.current().map_or("Morph", |c| c.label).into()
@@ -138,13 +208,15 @@ impl Menu {
                 "to open them in Morph".into()
             };
         }
-        if let Some(done) = &self.done {
-            return done.clone();
-        }
-        let Some(files) = &self.files else { return "or press Esc".into() };
         if let Some(item) = self.active.and_then(|a| self.items().into_iter().nth(a)) {
             return item.hint;
         }
+        match &self.status {
+            Status::Working(text) | Status::Asking(text) => return text.clone(),
+            Status::Finished { message, .. } => return message.clone(),
+            Status::Idle => {}
+        }
+        let Some(files) = &self.files else { return "or press Esc".into() };
         if self.available().is_empty() {
             return "Nothing to convert".into();
         }
@@ -166,23 +238,30 @@ impl Menu {
 
     pub fn pick(&mut self, index: usize) -> Outcome {
         let items = self.items();
-        if index >= items.len() {
+        let Some(item) = items.get(index) else { return Outcome::Unchanged };
+        if let Status::Asking(_) = self.status {
+            self.status = Status::Working("Saving…".into());
+            self.active = None;
+            return Outcome::Answered(ANSWERS[index].3);
+        }
+        if self.status != Status::Idle {
             return Outcome::Unchanged;
         }
-        match self.current() {
-            None => {
-                self.category = Some(index);
-                self.active = None;
-                Outcome::Redraw { new_ring: true }
-            }
-            Some(c) => {
-                let action = &c.actions[index];
-                // Step 4 runs the real job; for now the orb just confirms the choice.
-                self.done = Some(format!("{} · preview", action.hint));
-                self.active = None;
-                Outcome::Chosen { category: c.id, action: action.id }
-            }
+        let Some(c) = self.current() else {
+            self.category = Some(index);
+            self.active = None;
+            return Outcome::Redraw { new_ring: true };
+        };
+        if !item.enabled {
+            // Show why it can't run (its hint is the reason).
+            self.active = Some(index);
+            return Outcome::Redraw { new_ring: false };
         }
+        let action = &c.actions[index];
+        let files: Vec<String> = self.files.iter().flatten().filter(|f| c.accepts(f)).cloned().collect();
+        self.status = Status::Working(format!("{}…", action.hint));
+        self.active = None;
+        Outcome::Chosen { category: c.id, action: action.id, files }
     }
 
     pub fn back(&mut self) -> Outcome {
@@ -199,7 +278,7 @@ impl Menu {
         if key == Key::Escape {
             return Outcome::Close;
         }
-        if self.done.is_some() {
+        if matches!(self.status, Status::Working(_) | Status::Finished { .. }) {
             return Outcome::Unchanged;
         }
         let n = self.items().len();
@@ -237,6 +316,7 @@ mod tests {
         let mut m = Menu::default();
         m.reset(None);
         assert!(m.is_waiting_for_drop());
+        assert!(!m.hides_on_blur());
         assert_eq!((m.title().as_str(), m.subtitle().as_str()), ("Drop files", "or press Esc"));
         assert!(m.items().is_empty());
     }
@@ -267,47 +347,81 @@ mod tests {
     fn hover_shows_hint() {
         let mut m = Menu::default();
         m.reset(files(&["a.png"]));
-        assert!(m.hover(Some(4)));
-        assert_eq!(m.subtitle(), "Resize by width or percentage");
-        assert!(!m.hover(Some(4)));
+        assert!(m.hover(Some(2)));
+        assert_eq!(m.subtitle(), "Convert to WEBP");
+        assert!(!m.hover(Some(2)));
         assert!(m.hover(Some(99)), "out-of-range hover clears the highlight");
         assert_eq!(m.active(), None);
     }
 
     #[test]
-    fn keyboard_flow() {
+    fn choosing_an_action_starts_a_job_with_only_matching_files() {
+        let mut m = Menu::default();
+        m.reset(files(&["a.png", "b.mp4", "c.jpg"]));
+        m.pick(0); // Image
+        let out = m.pick(2); // WEBP
+        assert_eq!(
+            out,
+            Outcome::Chosen { category: CategoryId::Image, action: "convert:webp", files: vec!["a.png".into(), "c.jpg".into()] }
+        );
+        assert!(m.is_busy() && !m.hides_on_blur());
+        assert_eq!((m.title().as_str(), m.subtitle().as_str()), ("Working…", "Convert to WEBP…"));
+        assert!(m.items().is_empty());
+        assert_eq!(m.key(Key::Digit(1)), Outcome::Unchanged, "no picks while working");
+        m.finish(true, "Saved 2 files".into());
+        assert!(m.shows_check() && m.hides_on_blur());
+        assert_eq!(m.subtitle(), "Saved 2 files");
+        assert_eq!(m.key(Key::Escape), Outcome::Close);
+    }
+
+    #[test]
+    fn disabled_actions_explain_themselves_instead_of_running() {
+        let mut m = Menu::default();
+        m.reset(files(&["a.png"]));
+        let crop = labels(&m).iter().position(|&l| l == "Crop").unwrap();
+        assert!(!m.items()[crop].enabled);
+        assert_eq!(m.pick(crop), Outcome::Redraw { new_ring: false });
+        assert_eq!(m.subtitle(), "Coming soon");
+        assert!(!m.is_busy());
+    }
+
+    #[test]
+    fn asking_offers_replace_or_keep_both() {
+        let mut m = Menu::default();
+        m.reset(files(&["a.png"]));
+        m.pick(1);
+        m.ask("a.converted.jpg already exists".into());
+        assert_eq!(labels(&m), ["Replace", "Keep both"]);
+        assert_eq!(m.title(), "Already there");
+        assert_eq!(m.subtitle(), "a.converted.jpg already exists");
+        assert!(!m.hides_on_blur());
+        assert_eq!(m.key(Key::Digit(2)), Outcome::Answered(Answer::KeepBoth));
+        assert_eq!(m.title(), "Working…");
+    }
+
+    #[test]
+    fn failure_shows_the_reason() {
+        let mut m = Menu::default();
+        m.reset(files(&["a.png"]));
+        m.pick(0);
+        m.finish(false, "a.png is in a format Morph can't read yet".into());
+        assert!(!m.shows_check());
+        assert_eq!(m.title(), "Couldn't finish");
+        assert!(m.subtitle().contains("can't read"));
+    }
+
+    #[test]
+    fn keyboard_navigation() {
         let mut m = Menu::default();
         m.reset(files(&["a.png", "b.mp4"]));
         assert_eq!(m.key(Key::Digit(2)), Outcome::Redraw { new_ring: true });
         assert_eq!(m.title(), "Video");
         assert_eq!(m.key(Key::Back), Outcome::Redraw { new_ring: true });
         assert_eq!(m.title(), "Morph");
-        m.key(Key::Digit(2));
-        assert_eq!(
-            m.key(Key::Digit(3)),
-            Outcome::Chosen { category: catalog::CategoryId::Video, action: "convert:gif" }
-        );
-        assert!(m.is_done());
-        assert_eq!(m.subtitle(), "Convert to GIF · preview");
-        assert_eq!(m.key(Key::Digit(1)), Outcome::Unchanged, "done state ignores further picks");
-        assert_eq!(m.key(Key::Escape), Outcome::Close);
-    }
-
-    #[test]
-    fn arrows_wrap_and_enter_picks() {
-        let mut m = Menu::default();
-        m.reset(files(&["d.pdf"]));
         m.key(Key::Prev);
-        assert_eq!(m.active(), Some(4));
+        assert_eq!(m.active(), Some(1));
         m.key(Key::Next);
         assert_eq!(m.active(), Some(0));
-        assert!(matches!(m.key(Key::Enter), Outcome::Chosen { action: "merge", .. }));
-    }
-
-    #[test]
-    fn digits_beyond_ring_are_ignored() {
-        let mut m = Menu::default();
-        m.reset(files(&["d.pdf"]));
         assert_eq!(m.key(Key::Digit(9)), Outcome::Unchanged);
     }
 
