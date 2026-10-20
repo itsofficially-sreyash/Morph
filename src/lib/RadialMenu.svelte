@@ -23,6 +23,9 @@
   const R0 = 66;
   const R1 = 170;
   const LABEL_R = (R0 + R1) / 2;
+  // Text box inside the hub, kept clear of the circle's curved edge.
+  const HUB_TEXT_W = 92;
+  const HUB_TEXT_H = 88;
 
   let active = $state(-1);
   const slices = $derived(sectors(items.length));
@@ -106,13 +109,16 @@
       onkeydown={() => {}}
     >
       <circle cx={C} cy={C} r={HUB} />
-      {#if canGoBack}
-        <text x={C} y={C - 22} class="back">‹ back</text>
-      {/if}
-      <text x={C} y={C + (hovered ? -4 : 2)} class="title">{title}</text>
-      <text x={C} y={C + (hovered ? 13 : 19)} class="subtitle">
-        {hovered ? hovered.hint : subtitle}
-      </text>
+      <!-- SVG text can't wrap, so the hub's text lives in an HTML box that fits inside the circle. -->
+      <foreignObject x={C - HUB_TEXT_W / 2} y={C - HUB_TEXT_H / 2} width={HUB_TEXT_W} height={HUB_TEXT_H}>
+        <div class="hub-text">
+          {#if canGoBack}
+            <span class="back">‹ back</span>
+          {/if}
+          <span class="title">{title}</span>
+          <span class="subtitle">{hovered ? hovered.hint : subtitle}</span>
+        </div>
+      </foreignObject>
     </g>
   </svg>
 {/key}
@@ -193,22 +199,41 @@
   .hub.clickable:hover circle {
     stroke: var(--accent);
   }
-  .hub text {
-    text-anchor: middle;
-    dominant-baseline: central;
+  .hub foreignObject {
     pointer-events: none;
   }
+  .hub-text {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-align: center;
+    line-height: 1.2;
+  }
   .title {
-    fill: var(--text);
+    color: var(--text);
     font-size: 15px;
     font-weight: 700;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .subtitle {
-    fill: var(--muted);
+    color: var(--muted);
     font-size: 10px;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
   }
   .back {
-    fill: var(--accent);
+    color: var(--accent);
     font-size: 10px;
     font-weight: 600;
   }
