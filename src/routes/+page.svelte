@@ -7,9 +7,13 @@
   let customPath = $state("");
   let status = $state<{ kind: "ok" | "error"; text: string } | null>(null);
 
+  // Why the saved hotkey couldn't be registered at startup (taken, or unsupported on Wayland).
+  let hotkeyError = $state<string | null>(null);
+
   onMount(async () => {
     settings = await invoke<Settings>("get_settings");
     if (settings.output.kind === "custom") customPath = settings.output.path;
+    hotkeyError = await invoke<string | null>("hotkey_status");
   });
 
   async function save(event: Event) {
@@ -24,6 +28,7 @@
     };
     try {
       settings = await invoke<Settings>("set_settings", { settings: next });
+      hotkeyError = null;
       status = { kind: "ok", text: "Saved" };
     } catch (e) {
       status = { kind: "error", text: String(e) };
@@ -45,7 +50,13 @@
       <label>
         <span>Hotkey</span>
         <input bind:value={settings.hotkey} placeholder="Ctrl+Shift+Space" />
-        <small>Opens the drop orb at your cursor.</small>
+        <small>Opens the drop orb at your cursor. Press it again to close.</small>
+        {#if hotkeyError}
+          <small class="warn">
+            {hotkeyError} If your desktop blocks app hotkeys (e.g. GNOME on Wayland), add a system
+            shortcut that runs <code>morph --toggle</code>.
+          </small>
+        {/if}
       </label>
 
       <fieldset>
@@ -206,7 +217,8 @@
   .status.ok {
     color: var(--accent-2);
   }
-  .status.error {
+  .status.error,
+  .warn {
     color: var(--error);
   }
 </style>

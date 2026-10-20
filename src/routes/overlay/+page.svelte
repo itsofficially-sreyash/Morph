@@ -10,7 +10,10 @@
     files: string[] | null;
   }
 
+  const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
   let files = $state<string[] | null>(null);
+  let dragging = $state(false);
   let category = $state<MenuCategory | null>(null);
   let done = $state<string | null>(null);
   let animationKey = $state(0);
@@ -37,9 +40,15 @@
     return relevant.length === 1 ? fileName(relevant[0]) : `${relevant.length} files`;
   });
 
-  const title = $derived(done ? "✓" : files === null ? "Drop files" : (current?.label ?? "Morph"));
+  const title = $derived(
+    dragging ? "Let go" : done ? "✓" : files === null ? "Drop files" : (current?.label ?? "Morph"),
+  );
   const subtitle = $derived(
-    done ?? (files === null ? "or press Esc" : available.length ? filesLine : "Nothing to convert"),
+    dragging
+      ? files?.length
+        ? "to add to these files"
+        : "to open them in Morph"
+      : (done ?? (files === null ? "or press Esc" : available.length ? filesLine : "Nothing to convert")),
   );
 
   function reset(next: string[] | null) {
@@ -47,7 +56,29 @@
     files = next;
     category = null;
     done = null;
+    dragging = false;
     animationKey++;
+  }
+
+  /** Files dropped on an open orb join the ones already there (no duplicates). */
+  function addFiles(dropped: string[]) {
+    reset([...new Set([...(files ?? []), ...dropped])]);
+  }
+
+  // Browser-only drag and drop, so the drop UI can be worked on without Tauri.
+  // Inside Tauri the native handler (overlay://drag, overlay://drop) delivers real paths instead.
+  function ondragover(e: DragEvent) {
+    if (inTauri) return;
+    e.preventDefault();
+    dragging = true;
+  }
+  function ondragleave(e: DragEvent) {
+    if (!inTauri && e.target === e.currentTarget) dragging = false;
+  }
+  function ondrop(e: DragEvent) {
+    if (inTauri) return;
+    e.preventDefault();
+    addFiles([...(e.dataTransfer?.files ?? [])].map((f) => f.name));
   }
 
   function hide() {
@@ -80,14 +111,18 @@
 
   onMount(() => {
     // Opened in a plain browser (UI work without Tauri): `/overlay?files=a.png,b.mp4`.
-    if (!("__TAURI_INTERNALS__" in window)) {
+    if (!inTauri) {
       const param = new URLSearchParams(location.search).get("files");
       reset(param ? param.split(",") : null);
       return;
     }
-    const unlisten = listen<ShownPayload>("overlay://shown", (e) => reset(e.payload.files));
+    const unlisteners = [
+      listen<ShownPayload>("overlay://shown", (e) => reset(e.payload.files)),
+      listen<{ over: boolean }>("overlay://drag", (e) => (dragging = e.payload.over)),
+      listen<{ files: string[] }>("overlay://drop", (e) => addFiles(e.payload.files)),
+    ];
     return () => {
-      unlisten.then((off) => off());
+      unlisteners.forEach((p) => p.then((off) => off()));
       clearTimeout(hideTimer);
     };
   });
@@ -96,10 +131,18 @@
 <svelte:window {onkeydown} />
 
 <!-- Clicking the transparent corners (outside the ring) closes the orb. -->
-<div class="stage" role="presentation" onpointerdown={(e) => e.target === e.currentTarget && hide()}>
+<div
+  class="stage"
+  role="presentation"
+  onpointerdown={(e) => e.target === e.currentTarget && hide()}
+  {ondragover}
+  {ondragleave}
+  {ondrop}
+>
   <RadialMenu
     bind:this={menu}
-    {items}
+    items={dragging ? [] : items}
+    glow={dragging}
     {title}
     {subtitle}
     canGoBack={!!category && available.length > 1 && !done}

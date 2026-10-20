@@ -11,11 +11,13 @@
     canGoBack: boolean;
     /** Bumped by the parent to replay the opening animation. */
     animationKey: number;
+    /** Highlights the orb, e.g. while files are dragged over it. */
+    glow?: boolean;
     onpick: (item: RingItem) => void;
     onback: () => void;
   }
 
-  let { items, title, subtitle, canGoBack, animationKey, onpick, onback }: Props = $props();
+  let { items, title, subtitle, canGoBack, animationKey, glow = false, onpick, onback }: Props = $props();
 
   const SIZE = 380;
   const C = SIZE / 2;
@@ -73,7 +75,7 @@
       </radialGradient>
     </defs>
 
-    <circle class="backdrop" cx={C} cy={C} r={R1 + 6} />
+    <circle class="backdrop" class:glow cx={C} cy={C} r={R1 + 6} />
 
     {#each items as item, i (item.id + i)}
       {@const s = slices[i]}
@@ -141,6 +143,21 @@
     fill: var(--ring-bg);
     stroke: var(--ring-edge);
     stroke-width: 1;
+    transition:
+      stroke 120ms,
+      stroke-width 120ms;
+  }
+  .backdrop.glow {
+    stroke: var(--accent);
+    stroke-width: 4;
+    stroke-dasharray: 10 8;
+    animation: spin 6s linear infinite;
+    transform-origin: 190px 190px;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   .slice {
     cursor: pointer;

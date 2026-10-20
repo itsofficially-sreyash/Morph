@@ -87,6 +87,9 @@ pub fn get_settings(app: AppHandle) -> Settings {
 
 #[tauri::command]
 pub fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings, String> {
+    settings.validate()?;
+    // Switch the hotkey first: if it can't be registered, nothing is saved and the old one keeps working.
+    crate::hotkey::apply(&app, &settings.hotkey)?;
     save(&app, &settings)?;
     Ok(settings)
 }

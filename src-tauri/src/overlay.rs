@@ -1,9 +1,17 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewWindow};
+use tauri::{
+    AppHandle, DragDropEvent, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, WebviewWindow, Window,
+};
 
 pub const LABEL: &str = "overlay";
 /// Logical (DPI-independent) size of the overlay window; matches tauri.conf.json.
 const SIZE: f64 = 380.0;
+
+/// True while the orb is open with no files yet. The user may switch to a file manager
+/// to start dragging, so the orb must not hide on blur in this state.
+static AWAITING_DROP: AtomicBool = AtomicBool::new(false);
 
 /// Sent to the overlay page each time it is shown.
 #[derive(Debug, Clone, Serialize)]
@@ -62,15 +70,61 @@ pub fn show_at_cursor<R: Runtime>(app: &AppHandle<R>, files: Option<Vec<String>>
         win.set_position(PhysicalPosition::new(x, y))?;
     }
 
+    AWAITING_DROP.store(files.is_none(), Ordering::Relaxed);
     win.show()?;
-    win.set_focus()?;
+    // Windows may refuse to move focus (e.g. mid-drag from Explorer); the orb still works by mouse.
+    let _ = win.set_focus();
     win.emit_to(LABEL, "overlay://shown", ShownPayload { files })?;
     Ok(())
 }
 
 pub fn hide<R: Runtime>(app: &AppHandle<R>) {
+    AWAITING_DROP.store(false, Ordering::Relaxed);
     if let Some(win) = window(app) {
         let _ = win.hide();
+    }
+}
+
+/// Hotkey / `--toggle`: open an empty orb at the cursor, or close it if it's open.
+pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
+    let visible = window(app).and_then(|w| w.is_visible().ok()).unwrap_or(false);
+    if visible {
+        hide(app);
+    } else {
+        let _ = show_at_cursor(app, None);
+    }
+}
+
+pub fn hides_on_blur() -> bool {
+    !AWAITING_DROP.load(Ordering::Relaxed)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DragPayload {
+    over: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DropPayload {
+    files: Vec<String>,
+}
+
+pub fn on_drag_drop<R: Runtime>(window: &Window<R>, event: &DragDropEvent) {
+    let emit_drag = |over| {
+        let _ = window.emit_to(LABEL, "overlay://drag", DragPayload { over });
+    };
+    match event {
+        DragDropEvent::Enter { .. } => emit_drag(true),
+        DragDropEvent::Leave => emit_drag(false),
+        DragDropEvent::Drop { paths, .. } => {
+            emit_drag(false);
+            AWAITING_DROP.store(false, Ordering::Relaxed);
+            let files = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+            let _ = window.emit_to(LABEL, "overlay://drop", DropPayload { files });
+            // Give keyboard control (1–9, Enter) to the orb after a drop, where Windows allows it.
+            let _ = window.set_focus();
+        }
+        _ => {}
     }
 }
 
