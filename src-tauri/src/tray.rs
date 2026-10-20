@@ -4,10 +4,24 @@ use tauri::{
     AppHandle, Manager, Runtime,
 };
 
+use crate::overlay;
+
 pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open_orb", "Open orb", true, None::<&str>)?;
+    let preview = MenuItem::with_id(app, "preview_orb", "Preview with sample files", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Morph", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&settings, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &preview,
+            &PredefinedMenuItem::separator(app)?,
+            &settings,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
 
     TrayIconBuilder::with_id("morph-tray")
         .tooltip("Morph")
@@ -15,6 +29,14 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
+            "open_orb" => {
+                let _ = overlay::show_at_cursor(app, None);
+            }
+            // Until real drops land (step 3), this shows the radial menu with made-up files.
+            "preview_orb" => {
+                let sample = ["holiday.png", "clip.mp4", "song.mp3", "notes.pdf", "report.docx"];
+                let _ = overlay::show_at_cursor(app, Some(sample.map(String::from).to_vec()));
+            }
             "settings" => show_settings(app),
             "quit" => app.exit(0),
             _ => {}

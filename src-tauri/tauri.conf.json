@@ -19,6 +19,21 @@
         "resizable": false,
         "visible": false,
         "center": true
+      },
+      {
+        "label": "overlay",
+        "title": "Morph",
+        "url": "/overlay",
+        "width": 380,
+        "height": 380,
+        "visible": false,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "focus": false
       }
     ],
     "security": {

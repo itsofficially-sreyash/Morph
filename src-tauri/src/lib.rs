@@ -1,3 +1,4 @@
+mod overlay;
 mod settings;
 mod tray;
 
@@ -21,20 +22,24 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
-            settings::set_settings
+            settings::set_settings,
+            overlay::hide_overlay
         ])
         .setup(|app| {
             tray::create(app.handle())?;
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|window, event| match event {
             // Closing the settings window hides it; Morph keeps running in the tray.
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
+            WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                api.prevent_close();
+                let _ = window.hide();
             }
+            // Clicking anywhere outside the orb dismisses it.
+            WindowEvent::Focused(false) if window.label() == overlay::LABEL => {
+                let _ = window.hide();
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building Morph");
