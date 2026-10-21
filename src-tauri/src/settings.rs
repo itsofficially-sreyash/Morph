@@ -125,8 +125,9 @@ mod tests {
         let s: Settings =
             serde_json::from_str(r#"{"hotkey":"Alt+M","output":{"kind":"custom","path":"D:\\Out"}}"#).unwrap();
         assert_eq!(s.hotkey, "Alt+M");
-        let out = s.output_path(Path::new("C:\\Pics\\a.png"), "webp");
-        assert_eq!(out.parent(), Some(Path::new("C:\\Pics")));
+        // Forward slashes: a separator on both Windows and Linux.
+        let out = s.output_path(Path::new("C:/Pics/a.png"), "webp");
+        assert_eq!(out.parent(), Some(Path::new("C:/Pics")));
     }
 
     #[test]

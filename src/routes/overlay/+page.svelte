@@ -114,8 +114,18 @@
     }
     const cat = current;
     const relevant = (files ?? []).filter((f) => cat.extensions.includes(f.split(".").pop()?.toLowerCase() ?? ""));
-    status = { kind: "working", text: `${item.hint}…` };
     let result: { ok: boolean; message: string };
+    if (inTauri) {
+      try {
+        // Merge, Split, Resize and Crop open their own window instead (Rust decides which).
+        const args = { category: cat.id, action: item.id, files: relevant };
+        if (await invoke<boolean>("overlay_open_tool", args)) return;
+      } catch (e) {
+        status = { kind: "finished", ok: false, message: String(e) };
+        return;
+      }
+    }
+    status = { kind: "working", text: `${item.hint}…` };
     if (inTauri) {
       try {
         // Rust picks the destination (always the original's folder) and runs the engine.

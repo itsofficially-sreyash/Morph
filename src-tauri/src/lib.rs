@@ -24,6 +24,9 @@ fn run_command<R: Runtime>(app: &AppHandle<R>, command: cli::Command, already_ru
             if let Err(e) = shell_integration::remove() {
                 eprintln!("shell integration: {e}");
             }
+            if let Err(e) = hotkey::remove_system_shortcut() {
+                eprintln!("hotkey: {e}");
+            }
             if let Err(e) = autostart::remove(app) {
                 eprintln!("autostart: {e}");
             }
@@ -59,6 +62,7 @@ pub fn run() {
             settings::get_settings,
             settings::set_settings,
             overlay::hide_overlay,
+            overlay::overlay_open_tool,
             hotkey::hotkey_status,
             jobs::run_action,
             toolwin::tool_info,

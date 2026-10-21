@@ -156,6 +156,24 @@ pub fn hide_overlay(app: AppHandle) {
     hide(&app);
 }
 
+/// For actions that need more input (Merge, Split, Resize, Crop): opens their tool window
+/// and closes the orb, like the native orb does. `Ok(false)` means the action has no
+/// window and should go to `run_action`.
+#[tauri::command]
+pub fn overlay_open_tool(app: AppHandle, category: String, action: String, files: Vec<String>) -> Result<bool, String> {
+    let id = crate::actions::CategoryId::parse(&category).ok_or_else(|| format!("Unknown category {category}"))?;
+    let cat = crate::actions::category(id);
+    let act = cat.action(&action).ok_or_else(|| format!("Unknown action {action}"))?;
+    let Some(kind) = act.window else { return Ok(false) };
+    crate::actions::enough_files(cat, act, files.len())?;
+    hide(&app);
+    // Queued: building a window inside a synchronous command can deadlock.
+    let handle = app.clone();
+    app.run_on_main_thread(move || crate::toolwin::open(&handle, kind, id, act.id, files))
+        .map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
