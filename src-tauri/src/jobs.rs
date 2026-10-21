@@ -273,15 +273,16 @@ pub fn run(settings: &Settings, req: &Request, ask: &dyn Fn(String) -> Answer) -
     let Some(action) = category.action(req.action) else {
         return Summary::failed(format!("Unknown action {}", req.action));
     };
-    if let Err(why) = actions::availability(action) {
-        return Summary::failed(why);
-    }
+    // Wrong files first: that's true on every machine, whatever is installed.
     let inputs: Vec<PathBuf> = req.files.iter().filter(|f| action.accepts(category, f)).map(PathBuf::from).collect();
     if inputs.is_empty() {
         if action.only.is_some() && req.files.iter().any(|f| category.accepts(f)) {
             return Summary::failed("Slides and spreadsheets can only be saved as PDF");
         }
         return Summary::failed(format!("None of these files are {} files", category.label.to_lowercase()));
+    }
+    if let Err(why) = actions::availability(action) {
+        return Summary::failed(why);
     }
     if let Err(why) = actions::enough_files(category, action, inputs.len()) {
         return Summary::failed(why);

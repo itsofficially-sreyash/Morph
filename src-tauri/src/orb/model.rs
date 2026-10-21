@@ -363,10 +363,15 @@ mod tests {
         assert_eq!(labels(&m), ["PDF"]);
         m.reset(files(&["deck.pptx", "notes.docx"]));
         assert_eq!(labels(&m), ["PDF", "DOCX", "ODT", "TXT"]);
-        // Picking DOCX sends only the text document.
-        match m.pick(1) {
-            Outcome::Chosen { action, files, .. } => assert_eq!((action, files), ("convert:docx", vec!["notes.docx".to_string()])),
-            other => panic!("unexpected {other:?}"),
+        // Picking DOCX sends only the text document (or, on a machine without Office or
+        // LibreOffice, shows why it can't run).
+        let office = catalog::category(CategoryId::Document).action("convert:docx").map(catalog::availability);
+        match (m.pick(1), office) {
+            (Outcome::Chosen { action, files, .. }, Some(Ok(()))) => {
+                assert_eq!((action, files), ("convert:docx", vec!["notes.docx".to_string()]))
+            }
+            (Outcome::Redraw { new_ring: false }, Some(Err(_))) => {}
+            (other, office) => panic!("unexpected {other:?} with office {office:?}"),
         }
     }
 
