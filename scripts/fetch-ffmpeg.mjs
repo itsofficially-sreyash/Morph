@@ -38,10 +38,20 @@ const out = join(outDir, `morph-ffmpeg-${target}${windows ? ".exe" : ""}`);
 const work = mkdtempSync(join(tmpdir(), "morph-ffmpeg-"));
 try {
   const archive = join(work, asset);
-  console.log(`Downloading ${BASE}/${asset}`);
-  const res = await fetch(`${BASE}/${asset}`);
-  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
-  await pipeline(Readable.fromWeb(res.body), createWriteStream(archive));
+  // Big download from GitHub's CDN; retry a dropped connection a few times.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      console.log(`Downloading ${BASE}/${asset}`);
+      const res = await fetch(`${BASE}/${asset}`);
+      if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+      await pipeline(Readable.fromWeb(res.body), createWriteStream(archive));
+      break;
+    } catch (e) {
+      if (attempt === 4) throw e;
+      console.log(`  ${e.cause?.code ?? e.message}; retrying (${attempt}/3)`);
+      await new Promise((r) => setTimeout(r, 3000 * attempt));
+    }
+  }
 
   // bsdtar (Windows 10+) and GNU tar both read these archives.
   execFileSync("tar", ["-xf", archive, "-C", work], { stdio: "inherit" });

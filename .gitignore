@@ -7,6 +7,8 @@ src-tauri/target/
 src-tauri/gen/
 binaries/*
 !binaries/.gitkeep
+# Bundled FFmpeg, fetched by scripts/fetch-ffmpeg.mjs (never committed)
+src-tauri/binaries/
 .env
 .env.*
 !.env.example
