@@ -3,6 +3,8 @@ name = "morph"
 version = "0.1.0"
 description = "Convert and edit files from a radial menu"
 authors = ["Sreyash Singh"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/itsofficially-sreyash/Morph"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

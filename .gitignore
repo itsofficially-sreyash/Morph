@@ -16,3 +16,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 *.log
 .DS_Store
+
+# Internal notes live in a private repo, cloned here as .notes (see its README)
+.notes/
+CLAUDE.md
+AGENTS.md
+.claude/

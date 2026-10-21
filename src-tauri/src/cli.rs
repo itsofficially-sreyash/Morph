@@ -1,7 +1,7 @@
 //! Command-line entry points. Both reach the already-running Morph through the
 //! single-instance hand-off, so a launch costs only a short-lived process.
 //!
-//! - `morph --open <files…>`: what the right-click "Convert with Morph…" entry runs (step 6).
+//! - `morph --open <files…>`: what the right-click "Convert with Morph…" entry runs.
 //! - `morph --toggle`: for desktops without global hotkeys (GNOME on Wayland) to bind a
 //!   system shortcut to.
 

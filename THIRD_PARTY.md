@@ -1,6 +1,6 @@
 # Third-party software in Morph
 
-Morph's installers include the programs below (AGENTS.md rule 4). Everything else Morph uses
+Morph's installers include the programs below. Everything else Morph uses
 comes from the user's system and is not shipped: WebView2 or WebKitGTK, system fonts, the
 Windows PDF renderer, `pdftoppm`, Microsoft Office and LibreOffice.
 

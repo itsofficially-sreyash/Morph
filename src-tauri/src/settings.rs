@@ -22,11 +22,11 @@ pub enum OverwritePolicy {
 pub struct Settings {
     pub hotkey: String,
     /// `{name}` is the source file stem, `{ext}` the new extension. Converted files are
-    /// always written in the original file's folder (owner rule), so this is a file
+    /// always written in the original file's folder, so this is a file
     /// name only; folder separators are rejected.
     pub naming_pattern: String,
     pub overwrite: OverwritePolicy,
-    /// Start Morph (quietly, in the tray) when the user signs in. On by default (owner rule).
+    /// Start Morph (quietly, in the tray) when the user signs in. On by default.
     pub start_at_login: bool,
     /// "Convert with Morph" in the file manager's right-click menu. On by default.
     pub context_menu: bool,
@@ -37,7 +37,7 @@ impl Default for Settings {
         Self {
             hotkey: "Ctrl+Shift+Space".into(),
             naming_pattern: "{name}.converted.{ext}".into(),
-            // AGENTS.md rule 3: never overwrite without asking.
+            // Never overwrite without asking.
             overwrite: OverwritePolicy::Ask,
             start_at_login: true,
             context_menu: true,
@@ -60,8 +60,7 @@ impl Settings {
     }
 
     /// Where a converted copy of `source` with extension `ext` is written: always the
-    /// original's own folder. Every engine must use this (AGENTS.md rule 3a).
-    #[allow(dead_code)] // first caller: the engines in step 4
+    /// original's own folder. Every engine must use this.
     pub fn output_path(&self, source: &Path, ext: &str) -> PathBuf {
         let stem = source.file_stem().map(|s| s.to_string_lossy()).unwrap_or_default();
         let name = self.naming_pattern.replace("{name}", &stem).replace("{ext}", ext.trim_start_matches('.'));

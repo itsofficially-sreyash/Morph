@@ -1,6 +1,6 @@
 //! Small windows for actions that need more input than a click: Merge (order the PDFs),
 //! Split (page ranges), Resize (size or %), Crop (draw a box). Each is a web window
-//! created on demand and destroyed on close (AGENTS.md rule 10), running `src/routes/tool`.
+//! created on demand and destroyed on close (nothing stays in memory), running `src/routes/tool`.
 
 use std::collections::HashMap;
 use std::path::Path;

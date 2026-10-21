@@ -1,7 +1,7 @@
 //! Explorer: a classic shell verb under `HKCU\Software\Classes\*\shell` (per user, no
 //! admin rights). On Windows 11 it appears under "Show more options"; the compact
-//! top-level menu needs a signed app package (`IExplorerCommand`), which goes with code
-//! signing in step 7.
+//! top-level menu needs a signed app package (`IExplorerCommand`), which needs code
+//! signing.
 
 use std::path::Path;
 

@@ -4,7 +4,7 @@
 //! Everything here runs on the main thread, where Tauri runs the GTK main loop. Nothing
 //! runs while the orb is hidden: no timers, and the pixel buffers are freed (only the
 //! window and fonts are kept so the next open is instant). No WebKit is involved, so no
-//! web processes stay alive while Morph waits in the tray (AGENTS.md rule 10).
+//! web processes stay alive while Morph waits in the tray.
 //!
 //! GTK runs on XWayland under Wayland (`main.rs`): native Wayland can't keep a window on
 //! top or place it at the cursor.

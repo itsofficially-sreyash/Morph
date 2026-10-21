@@ -1,4 +1,4 @@
-//! Start Morph at sign-in (owner rule: on by default). Windows: a value under
+//! Start Morph at sign-in (on by default). Windows: a value under
 //! `HKCU\...\Run`; Linux: an XDG autostart entry. Both point at the running executable,
 //! so after an update or reinstall the next launch re-points them.
 //!

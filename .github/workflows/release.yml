@@ -47,7 +47,7 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-      # LGPL FFmpeg only; the script refuses GPL/non-free builds (AGENTS.md rule 4).
+      # LGPL FFmpeg only; the script refuses GPL/non-free builds (see THIRD_PARTY.md).
       - name: Bundled FFmpeg
         run: node scripts/fetch-ffmpeg.mjs
 

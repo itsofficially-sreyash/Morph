@@ -2,8 +2,8 @@
 //
 //   node scripts/fetch-ffmpeg.mjs
 //
-// The build is an **LGPL** build from BtbN/FFmpeg-Builds (AGENTS.md rule 4: no
-// --enable-gpl / --enable-nonfree). BtbN rebuilds its "latest" assets regularly, so there's
+// The build is an **LGPL** build from BtbN/FFmpeg-Builds (no
+// --enable-gpl / --enable-nonfree; see THIRD_PARTY.md). BtbN rebuilds its "latest" assets regularly, so there's
 // no fixed checksum; instead this script refuses any FFmpeg that is GPL or non-free, older
 // than 7.1 (needed for iPhone HEIC photos), or missing an encoder Morph uses.
 // Run by the release workflow, and by hand before a local `tauri build`.
@@ -63,7 +63,7 @@ try {
   const run = (...args) => execFileSync(exe, ["-hide_banner", ...args], { encoding: "utf8" });
   const conf = run("-buildconf");
   for (const flag of ["--enable-gpl", "--enable-nonfree"]) {
-    if (conf.includes(flag)) throw new Error(`Refusing ${asset}: built with ${flag} (licence rule 4)`);
+    if (conf.includes(flag)) throw new Error(`Refusing ${asset}: built with ${flag} (see THIRD_PARTY.md)`);
   }
   const version = execFileSync(exe, ["-version"], { encoding: "utf8" }).split("\n")[0];
   const [, major, minor] = version.match(/version n?(\d+)\.(\d+)/) ?? [];

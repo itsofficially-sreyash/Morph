@@ -1,8 +1,8 @@
 //! The orb: the radial drop menu that opens at the cursor.
 //!
 //! A native, per-pixel-transparent window drawn on the CPU by `render.rs`, so no web
-//! processes (WebView2, WebKit) stay alive while Morph waits in the tray (AGENTS.md
-//! rule 10). One behaviour model (`model.rs`), one presenter per system: `win.rs` (Win32
+//! processes (WebView2, WebKit) stay alive while Morph waits in the tray.
+//! One behaviour model (`model.rs`), one presenter per system: `win.rs` (Win32
 //! layered window) and `gtk.rs` (GTK 3 with an RGBA visual).
 
 pub mod geometry;

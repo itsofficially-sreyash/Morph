@@ -1,5 +1,5 @@
-//! Documents with whatever office suite the machine already has (owner rule: no bundling,
-//! use what's installed):
+//! Documents with whatever office suite the machine already has (nothing is
+//! bundled; Morph uses what's installed):
 //! - Windows: Microsoft Word / Excel / PowerPoint through COM automation (driven by
 //!   Windows PowerShell, which every Windows 10/11 has), else LibreOffice.
 //! - Linux: LibreOffice.

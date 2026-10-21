@@ -18,7 +18,7 @@ pub fn name(p: &Path) -> String {
     p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.display().to_string())
 }
 
-/// Half the logical cores, at least one (AGENTS.md rule 10).
+/// Half the logical cores, at least one, so conversions never make the computer laggy.
 pub fn half_cores() -> usize {
     std::thread::available_parallelism().map(|n| (n.get() / 2).max(1)).unwrap_or(1)
 }

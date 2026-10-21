@@ -5,7 +5,8 @@
 //!   An original file is never replaced, whatever the file-name pattern.
 //! - Engines write to a hidden temp file that is renamed into place only on success,
 //!   so a failed conversion never leaves a half-written file.
-//! - At most `half_cores()` files are processed at once across all jobs (AGENTS.md rule 10).
+//! - At most `half_cores()` files are processed at once across all jobs, so the
+//!   computer stays responsive.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
