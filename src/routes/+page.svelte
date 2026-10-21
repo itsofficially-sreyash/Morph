@@ -72,6 +72,11 @@
         <span>Start Morph when I sign in</span>
       </label>
 
+      <label class="check">
+        <input type="checkbox" bind:checked={settings.context_menu} />
+        <span>Show “Convert with Morph” when I right-click a file</span>
+      </label>
+
       <footer>
         {#if status}
           <span class="status {status.kind}">{status.text}</span>

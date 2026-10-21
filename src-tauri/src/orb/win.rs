@@ -125,7 +125,12 @@ struct Orb {
     pending_answer: Option<Sender<Answer>>,
     /// Id of the job this orb is showing; results of older jobs are ignored.
     job: u64,
+    /// When `open_files` last added files, to gather a multi-file right-click.
+    last_open: Option<Instant>,
 }
+
+/// Launches from one multi-file right-click arrive within this window.
+const GATHER_MS: u128 = 1500;
 
 thread_local! {
     static ORB: RefCell<Option<Orb>> = const { RefCell::new(None) };
@@ -503,6 +508,7 @@ fn create() -> Option<Orb> {
             visible: false,
             pending_answer: None,
             job: 0,
+            last_open: None,
         })
     }
 }
@@ -564,6 +570,7 @@ pub fn hide() {
         o.surface = None;
         o.menu.reset(None);
         o.visible = false;
+        o.last_open = None;
         // Nobody can answer now: keep both (never overwrite without an answer).
         if let Some(tx) = o.pending_answer.take() {
             let _ = tx.send(Answer::KeepBoth);
@@ -579,6 +586,25 @@ pub fn hide() {
 
 pub fn is_visible() -> bool {
     with_orb(|o| unsafe { IsWindowVisible(o.hwnd) }.as_bool()).unwrap_or(false)
+}
+
+/// Right-click entry: add to the orb a moment-ago launch opened, or open a new one.
+pub fn open_files(files: Vec<String>) {
+    let gathered = with_orb(|o| {
+        let recent = o.last_open.is_some_and(|t| t.elapsed().as_millis() < GATHER_MS);
+        if o.visible && recent && !o.menu.is_busy() && !o.menu.is_finished() {
+            o.menu.add_files(files.clone());
+            o.last_open = Some(Instant::now());
+            o.animate();
+            true
+        } else {
+            false
+        }
+    });
+    if gathered != Some(true) {
+        show(Some(files));
+        with_orb(|o| o.last_open = Some(Instant::now()));
+    }
 }
 
 /// A job asks whether to replace existing outputs. Answered "Keep both" right away if

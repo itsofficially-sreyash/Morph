@@ -28,6 +28,8 @@ pub struct Settings {
     pub overwrite: OverwritePolicy,
     /// Start Morph (quietly, in the tray) when the user signs in. On by default (owner rule).
     pub start_at_login: bool,
+    /// "Convert with Morph" in the file manager's right-click menu. On by default.
+    pub context_menu: bool,
 }
 
 impl Default for Settings {
@@ -38,6 +40,7 @@ impl Default for Settings {
             // AGENTS.md rule 3: never overwrite without asking.
             overwrite: OverwritePolicy::Ask,
             start_at_login: true,
+            context_menu: true,
         }
     }
 }
@@ -93,6 +96,7 @@ pub fn set_settings(app: AppHandle, settings: Settings) -> Result<Settings, Stri
     // Switch the hotkey first: if it can't be registered, nothing is saved and the old one keeps working.
     crate::hotkey::apply(&app, &settings.hotkey)?;
     crate::autostart::apply(&app, settings.start_at_login)?;
+    crate::shell_integration::apply(settings.context_menu)?;
     save(&app, &settings)?;
     Ok(settings)
 }

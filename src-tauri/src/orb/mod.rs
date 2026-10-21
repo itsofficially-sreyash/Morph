@@ -90,6 +90,19 @@ pub fn show_at_cursor<R: Runtime>(app: &AppHandle<R>, files: Option<Vec<String>>
     }
 }
 
+/// Files from the right-click entry (`morph --open`). Explorer starts one launch per
+/// selected file, so launches arriving close together are gathered into one orb.
+pub fn open_files<R: Runtime>(app: &AppHandle<R>, files: Vec<String>) {
+    #[cfg(windows)]
+    {
+        let _ = app.run_on_main_thread(move || win::open_files(files));
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = crate::overlay::show_at_cursor(app, Some(files));
+    }
+}
+
 /// Hotkey / `--toggle`: open an empty orb at the cursor, or close it if it's open.
 pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
     #[cfg(windows)]

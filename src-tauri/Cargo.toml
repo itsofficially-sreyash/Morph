@@ -43,6 +43,8 @@ tauri-plugin-autostart = "2"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  # RegCreateKeyExW (right-click entry) takes SECURITY_ATTRIBUTES.
+  "Win32_Security",
   "Win32_System_Com",
   "Win32_System_LibraryLoader",
   "Win32_System_Ole",

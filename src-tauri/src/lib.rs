@@ -9,6 +9,7 @@ mod jobs;
 mod orb;
 mod overlay;
 mod settings;
+mod shell_integration;
 mod tools;
 mod toolwin;
 mod tray;
@@ -17,8 +18,17 @@ use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
 
 fn run_command<R: Runtime>(app: &AppHandle<R>, command: cli::Command, already_running: bool) {
     match command {
-        cli::Command::Open(files) => orb::show_at_cursor(app, Some(files)),
+        cli::Command::Open(files) => orb::open_files(app, files),
         cli::Command::Toggle => orb::toggle(app),
+        cli::Command::RemoveIntegration => {
+            if let Err(e) = shell_integration::remove() {
+                eprintln!("shell integration: {e}");
+            }
+            if let Err(e) = autostart::remove(app) {
+                eprintln!("autostart: {e}");
+            }
+            app.exit(0);
+        }
         // Launching Morph again from the Start menu opens Settings; a first launch
         // (e.g. at sign-in) stays quietly in the tray.
         cli::Command::None if already_running => tray::show_settings(app),
@@ -71,6 +81,9 @@ pub fn run() {
             // Keeps the sign-in entry pointing at this executable (e.g. after an update).
             if let Err(e) = autostart::apply(app.handle(), saved.start_at_login) {
                 eprintln!("autostart: {e}");
+            }
+            if let Err(e) = shell_integration::apply(saved.context_menu) {
+                eprintln!("shell integration: {e}");
             }
             // The first launch can carry a command too (e.g. right-click while Morph isn't running).
             let args: Vec<String> = std::env::args().collect();

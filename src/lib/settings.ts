@@ -5,4 +5,5 @@ export interface Settings {
   naming_pattern: string;
   overwrite: "ask" | "rename";
   start_at_login: boolean;
+  context_menu: boolean;
 }

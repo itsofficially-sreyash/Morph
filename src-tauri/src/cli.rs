@@ -11,6 +11,9 @@ use std::path::Path;
 pub enum Command {
     Open(Vec<String>),
     Toggle,
+    /// `morph --remove-integration`: for the uninstaller. Removes the right-click entry
+    /// and the sign-in entry, then quits (a running Morph quits too).
+    RemoveIntegration,
     /// Plain launch (e.g. from the Start menu): show Settings if Morph is already running.
     None,
 }
@@ -22,6 +25,7 @@ pub fn parse(args: &[String], cwd: &str) -> Command {
     while let Some(arg) = rest.next() {
         match arg.as_str() {
             "--toggle" => return Command::Toggle,
+            "--remove-integration" => return Command::RemoveIntegration,
             "--open" => {
                 let files: Vec<String> = rest
                     .filter(|a| !a.is_empty())
@@ -54,6 +58,11 @@ mod tests {
     #[test]
     fn toggle() {
         assert_eq!(parse(&args(&["morph", "--toggle"]), "/"), Command::Toggle);
+    }
+
+    #[test]
+    fn remove_integration() {
+        assert_eq!(parse(&args(&["morph.exe", "--remove-integration"]), "/"), Command::RemoveIntegration);
     }
 
     #[test]

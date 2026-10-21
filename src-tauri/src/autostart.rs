@@ -13,6 +13,15 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None::<Vec<&str>>)
 }
 
+/// Removes the autostart entry whatever the build (for the uninstaller).
+pub fn remove<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let launcher = app.autolaunch();
+    if launcher.is_enabled().unwrap_or(false) {
+        launcher.disable().map_err(|e| format!("Couldn't remove start at sign-in: {e}"))?;
+    }
+    Ok(())
+}
+
 /// Makes the system's autostart entry match `enabled`.
 pub fn apply<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String> {
     if cfg!(debug_assertions) {
