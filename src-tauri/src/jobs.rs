@@ -327,8 +327,8 @@ pub fn start<R: Runtime>(
     }
 }
 
-/// For the web orb (Linux): runs an action and returns the summary. Existing outputs are
-/// kept (Keep both) because the web orb can't ask yet.
+/// For the web orb (Linux): runs an action and returns the summary. If outputs already
+/// exist, the orb asks Replace / Keep both (`overlay::ask`).
 #[tauri::command]
 pub async fn run_action(
     app: AppHandle,
@@ -341,9 +341,13 @@ pub async fn run_action(
     let action = actions::category(id).action(&action).ok_or_else(|| format!("Unknown action {action}"))?.id;
     let settings = settings::load(&app);
     let req = Request { category: id, action, files, params: params.unwrap_or_default() };
-    tauri::async_runtime::spawn_blocking(move || run(&settings, &req, &|_| Answer::KeepBoth))
+    crate::overlay::set_busy(true);
+    let ask_app = app.clone();
+    let summary = tauri::async_runtime::spawn_blocking(move || run(&settings, &req, &|q| crate::overlay::ask(&ask_app, q)))
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string());
+    crate::overlay::set_busy(false);
+    summary
 }
 
 #[cfg(test)]

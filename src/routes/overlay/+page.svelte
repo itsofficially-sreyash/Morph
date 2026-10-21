@@ -16,9 +16,19 @@
   let dragging = $state(false);
   let category = $state<MenuCategory | null>(null);
   // Same states as the native orb (src-tauri/src/orb/model.rs).
-  type Status = { kind: "idle" } | { kind: "working"; text: string } | { kind: "finished"; ok: boolean; message: string };
+  type Status =
+    | { kind: "idle" }
+    | { kind: "working"; text: string }
+    | { kind: "asking"; question: string }
+    | { kind: "finished"; ok: boolean; message: string };
   let status = $state<Status>({ kind: "idle" });
   const done = $derived(status.kind !== "idle");
+  // The ring is pickable while choosing an action, or answering "already there".
+  const ringActive = $derived(status.kind === "idle" || status.kind === "asking");
+  const ANSWERS: RingItem[] = [
+    { id: "replace", label: "Replace", hint: "Overwrite the existing file(s)", hue: 12 },
+    { id: "keep", label: "Keep both", hint: "Save as a new numbered copy", hue: 172 },
+  ];
   let animationKey = $state(0);
   let menu = $state<ReturnType<typeof RadialMenu>>();
   let hideTimer: ReturnType<typeof setTimeout> | undefined;
@@ -28,11 +38,13 @@
   const current = $derived(category ?? (available.length === 1 ? available[0] : null));
 
   const items = $derived<RingItem[]>(
-    done
-      ? []
-      : current
-        ? actionsFor(current, files ?? []).map((a) => ({ id: a.id, label: a.label, hint: a.hint, hue: current.hue }))
-        : available.map((c) => ({ id: c.id, label: c.label, hint: `${c.actions.length} actions`, hue: c.hue })),
+    status.kind === "asking"
+      ? ANSWERS
+      : done
+        ? []
+        : current
+          ? actionsFor(current, files ?? []).map((a) => ({ id: a.id, label: a.label, hint: a.hint, hue: current.hue }))
+          : available.map((c) => ({ id: c.id, label: c.label, hint: `${c.actions.length} actions`, hue: c.hue })),
   );
 
   const filesLine = $derived.by(() => {
@@ -48,13 +60,15 @@
       ? "Let go"
       : status.kind === "working"
         ? "Working…"
-        : status.kind === "finished"
-          ? status.ok
-            ? "✓"
-            : "Couldn't finish"
-          : files === null
-            ? "Drop files"
-            : (current?.label ?? "Morph"),
+        : status.kind === "asking"
+          ? "Already there"
+          : status.kind === "finished"
+            ? status.ok
+              ? "✓"
+              : "Couldn't finish"
+            : files === null
+              ? "Drop files"
+              : (current?.label ?? "Morph"),
   );
   const subtitle = $derived(
     dragging
@@ -63,13 +77,15 @@
         : "to open them in Morph"
       : status.kind === "working"
         ? status.text
-        : status.kind === "finished"
-          ? status.message
-          : files === null
-            ? "or press Esc"
-            : available.length
-              ? filesLine
-              : "Nothing to convert",
+        : status.kind === "asking"
+          ? status.question
+          : status.kind === "finished"
+            ? status.message
+            : files === null
+              ? "or press Esc"
+              : available.length
+                ? filesLine
+                : "Nothing to convert",
   );
 
   function reset(next: string[] | null) {
@@ -108,6 +124,11 @@
   }
 
   async function pick(item: RingItem) {
+    if (status.kind === "asking") {
+      status = { kind: "working", text: item.id === "replace" ? "Replacing…" : "Keeping both…" };
+      invoke("overlay_answer", { replace: item.id === "replace" });
+      return;
+    }
     if (!current) {
       category = available.find((c) => c.id === item.id) ?? null;
       return;
@@ -127,6 +148,9 @@
       }
     }
     status = { kind: "working", text: `${item.hint}…` };
+    // The orb may be closed and reopened for other files while this runs; then the
+    // result belongs to nobody on screen.
+    const shownAs = animationKey;
     if (inTauri) {
       try {
         // Rust picks the destination (always the original's folder) and runs the engine.
@@ -141,6 +165,7 @@
     } else {
       result = { ok: true, message: "Saved (browser preview, nothing written)" };
     }
+    if (animationKey !== shownAs) return;
     status = { kind: "finished", ...result };
     // Success closes by itself; an error stays until dismissed.
     if (result.ok) hideTimer = setTimeout(hide, 1500);
@@ -154,7 +179,7 @@
     if (e.key === "Escape") {
       e.preventDefault();
       hide();
-    } else if (!done && menu?.handleKey(e)) {
+    } else if (ringActive && menu?.handleKey(e)) {
       e.preventDefault();
     }
   }
@@ -170,6 +195,7 @@
       listen<ShownPayload>("overlay://shown", (e) => reset(e.payload.files)),
       listen<{ over: boolean }>("overlay://drag", (e) => (dragging = e.payload.over)),
       listen<{ files: string[] }>("overlay://drop", (e) => addFiles(e.payload.files)),
+      listen<{ question: string }>("overlay://ask", (e) => (status = { kind: "asking", question: e.payload.question })),
     ];
     return () => {
       unlisteners.forEach((p) => p.then((off) => off()));

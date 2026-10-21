@@ -63,6 +63,7 @@ pub fn run() {
             settings::set_settings,
             overlay::hide_overlay,
             overlay::overlay_open_tool,
+            overlay::overlay_answer,
             hotkey::hotkey_status,
             jobs::run_action,
             toolwin::tool_info,

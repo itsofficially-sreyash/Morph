@@ -4,6 +4,9 @@
 #![cfg_attr(windows, allow(dead_code))]
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Mutex};
+
+use crate::jobs::Answer;
 
 use serde::Serialize;
 use tauri::{
@@ -35,6 +38,39 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 /// True while the orb is open with no files yet. The user may switch to a file manager
 /// to start dragging, so the orb must not hide on blur in this state.
 static AWAITING_DROP: AtomicBool = AtomicBool::new(false);
+/// True while a job started from the orb runs: like the native orb, it then stays open
+/// on blur, so the result isn't lost.
+static BUSY: AtomicBool = AtomicBool::new(false);
+/// The job waiting for "Replace" / "Keep both".
+static PENDING_ANSWER: Mutex<Option<mpsc::Sender<Answer>>> = Mutex::new(None);
+
+#[derive(Debug, Clone, Serialize)]
+struct AskPayload {
+    question: String,
+}
+
+/// Called on the job's worker thread: shows the question in the orb and waits. Hiding the
+/// orb (or no orb at all) answers Keep both, so nothing is ever replaced without a yes.
+pub fn ask<R: Runtime>(app: &AppHandle<R>, question: String) -> Answer {
+    let (tx, rx) = mpsc::channel();
+    *PENDING_ANSWER.lock().unwrap() = Some(tx);
+    let visible = window(app).and_then(|w| w.is_visible().ok()).unwrap_or(false);
+    if !visible || app.emit_to(LABEL, "overlay://ask", AskPayload { question }).is_err() {
+        PENDING_ANSWER.lock().unwrap().take();
+        return Answer::KeepBoth;
+    }
+    rx.recv().unwrap_or(Answer::KeepBoth)
+}
+
+fn answer(answer: Answer) {
+    if let Some(tx) = PENDING_ANSWER.lock().unwrap().take() {
+        let _ = tx.send(answer);
+    }
+}
+
+pub fn set_busy(busy: bool) {
+    BUSY.store(busy, Ordering::Relaxed);
+}
 
 /// Sent to the overlay page each time it is shown.
 #[derive(Debug, Clone, Serialize)]
@@ -94,6 +130,7 @@ pub fn show_at_cursor<R: Runtime>(app: &AppHandle<R>, files: Option<Vec<String>>
     }
 
     AWAITING_DROP.store(files.is_none(), Ordering::Relaxed);
+    answer(Answer::KeepBoth); // a fresh orb drops any open question
     win.show()?;
     // Windows may refuse to move focus (e.g. mid-drag from Explorer); the orb still works by mouse.
     let _ = win.set_focus();
@@ -103,6 +140,7 @@ pub fn show_at_cursor<R: Runtime>(app: &AppHandle<R>, files: Option<Vec<String>>
 
 pub fn hide<R: Runtime>(app: &AppHandle<R>) {
     AWAITING_DROP.store(false, Ordering::Relaxed);
+    answer(Answer::KeepBoth);
     if let Some(win) = window(app) {
         let _ = win.hide();
     }
@@ -119,7 +157,7 @@ pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
 }
 
 pub fn hides_on_blur() -> bool {
-    !AWAITING_DROP.load(Ordering::Relaxed)
+    !AWAITING_DROP.load(Ordering::Relaxed) && !BUSY.load(Ordering::Relaxed)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,6 +180,7 @@ pub fn on_drag_drop<R: Runtime>(window: &Window<R>, event: &DragDropEvent) {
         DragDropEvent::Drop { paths, .. } => {
             emit_drag(false);
             AWAITING_DROP.store(false, Ordering::Relaxed);
+            answer(Answer::KeepBoth); // the page resets for the new files
             let files = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
             let _ = window.emit_to(LABEL, "overlay://drop", DropPayload { files });
             // Give keyboard control (1–9, Enter) to the orb after a drop, where Windows allows it.
@@ -154,6 +193,11 @@ pub fn on_drag_drop<R: Runtime>(window: &Window<R>, event: &DragDropEvent) {
 #[tauri::command]
 pub fn hide_overlay(app: AppHandle) {
     hide(&app);
+}
+
+#[tauri::command]
+pub fn overlay_answer(replace: bool) {
+    answer(if replace { Answer::Replace } else { Answer::KeepBoth });
 }
 
 /// For actions that need more input (Merge, Split, Resize, Crop): opens their tool window

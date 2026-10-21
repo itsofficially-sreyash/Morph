@@ -40,7 +40,7 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>, hotkey: &str) -> Result<(), String>
         #[cfg(target_os = "linux")]
         if gnome::is_wayland_session() {
             // Wayland lets no app grab keys globally; GNOME runs `morph --toggle` for us.
-            let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+            let exe = crate::shell_integration::launcher_path()?;
             return gnome::install(hotkey, &exe);
         }
         if *current == Some(next) {

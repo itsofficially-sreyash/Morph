@@ -25,12 +25,22 @@ pub fn extensions() -> Vec<&'static str> {
     all
 }
 
+/// The path other programs should start Morph with. An AppImage runs from a temporary
+/// mount that disappears when it quits, so its entries must point at the `.AppImage` file.
+pub fn launcher_path() -> Result<std::path::PathBuf, String> {
+    #[cfg(target_os = "linux")]
+    if let Some(appimage) = std::env::var_os("APPIMAGE").map(std::path::PathBuf::from).filter(|p| p.is_file()) {
+        return Ok(appimage);
+    }
+    std::env::current_exe().map_err(|e| e.to_string())
+}
+
 /// Adds or removes the entry to match `enabled`.
 pub fn apply(enabled: bool) -> Result<(), String> {
     if cfg!(debug_assertions) {
         return Ok(());
     }
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe = launcher_path()?;
     if enabled { platform::install(&exe) } else { platform::remove() }
 }
 
