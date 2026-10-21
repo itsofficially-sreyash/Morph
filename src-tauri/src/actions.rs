@@ -51,6 +51,9 @@ pub struct Action {
     pub window: Option<ToolKind>,
     /// How many matching files the action needs (Merge: 2).
     pub min_files: usize,
+    /// Extensions this action is limited to within its category (slides and sheets can
+    /// only become PDFs). `None`: every file of the category.
+    pub only: Option<&'static [&'static str]>,
 }
 
 #[derive(Debug)]
@@ -64,12 +67,15 @@ pub struct Category {
 }
 
 const fn act(id: &'static str, label: &'static str, hint: &'static str, engine: Engine) -> Action {
-    Action { id, label, hint, engine, window: None, min_files: 1 }
+    Action { id, label, hint, engine, window: None, min_files: 1, only: None }
 }
 
 const fn tool(id: &'static str, label: &'static str, hint: &'static str, engine: Engine, kind: ToolKind) -> Action {
-    Action { id, label, hint, engine, window: Some(kind), min_files: 1 }
+    Action { id, label, hint, engine, window: Some(kind), min_files: 1, only: None }
 }
+
+/// Documents that can become DOCX/ODT/TXT; slides and spreadsheets only become PDFs.
+const TEXT_DOCS: &[&str] = &["docx", "doc", "odt", "rtf", "txt"];
 
 const IMG: Engine = Engine::Image;
 const PDF: Engine = Engine::Pdf;
@@ -140,9 +146,9 @@ pub static CATEGORIES: &[Category] = &[
         extensions: &["docx", "doc", "odt", "pptx", "ppt", "odp", "xlsx", "xls", "ods", "rtf", "txt"],
         actions: &[
             act("to-pdf", "PDF", "Save as PDF", OFFICE),
-            act("convert:docx", "DOCX", "Save as a Word document", OFFICE),
-            act("convert:odt", "ODT", "Save as OpenDocument text", OFFICE),
-            act("convert:txt", "TXT", "Save as plain text", OFFICE),
+            Action { only: Some(TEXT_DOCS), ..act("convert:docx", "DOCX", "Save as a Word document", OFFICE) },
+            Action { only: Some(TEXT_DOCS), ..act("convert:odt", "ODT", "Save as OpenDocument text", OFFICE) },
+            Action { only: Some(TEXT_DOCS), ..act("convert:txt", "TXT", "Save as plain text", OFFICE) },
         ],
     },
 ];
@@ -154,6 +160,19 @@ impl Category {
 
     pub fn action(&'static self, id: &str) -> Option<&'static Action> {
         self.actions.iter().find(|a| a.id == id)
+    }
+
+    /// The actions offered for these files: those that apply to at least one of them.
+    pub fn actions_for<'a>(&'static self, files: impl IntoIterator<Item = &'a String> + Clone) -> Vec<&'static Action> {
+        self.actions.iter().filter(|a| files.clone().into_iter().any(|f| a.accepts(self, f))).collect()
+    }
+}
+
+impl Action {
+    /// Whether this action works on `path` (a file of `category`).
+    pub fn accepts(&self, category: &Category, path: &str) -> bool {
+        let ext = std::path::Path::new(path).extension().map(|e| e.to_string_lossy().to_lowercase());
+        category.accepts(path) && self.only.is_none_or(|only| ext.is_some_and(|e| only.contains(&e.as_str())))
     }
 }
 
@@ -232,6 +251,20 @@ mod tests {
         for id in ["merge", "split", "compress", "rotate"] {
             assert_eq!(availability(pdf.action(id).unwrap()), Ok(()), "{id}");
         }
+    }
+
+    #[test]
+    fn slides_and_sheets_only_become_pdfs() {
+        let docs = category(CategoryId::Document);
+        let ids = |files: &[&str]| -> Vec<&str> {
+            let files: Vec<String> = files.iter().map(|f| f.to_string()).collect();
+            docs.actions_for(&files).iter().map(|a| a.id).collect()
+        };
+        assert_eq!(ids(&["deck.pptx"]), ["to-pdf"]);
+        assert_eq!(ids(&["a.xlsx", "b.ODP"]), ["to-pdf"]);
+        assert_eq!(ids(&["notes.docx"]), ["to-pdf", "convert:docx", "convert:odt", "convert:txt"]);
+        assert_eq!(ids(&["deck.pptx", "notes.docx"]).len(), 4);
+        assert!(!docs.action("convert:docx").unwrap().accepts(docs, "deck.pptx"));
     }
 
     #[test]

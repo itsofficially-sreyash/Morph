@@ -99,10 +99,10 @@ pub fn write_png(img: &DynamicImage, dst: &Path, best: bool) -> Result<(), Strin
     let mut w = writer(dst)?;
     let (compression, filter) =
         if best { (CompressionType::Best, FilterType::Adaptive) } else { (CompressionType::Default, FilterType::Adaptive) };
-    let rgba = img.to_rgba8();
-    let has_alpha = img.color().has_alpha();
     let enc = PngEncoder::new_with_quality(&mut w, compression, filter);
-    let result = if has_alpha {
+    // Convert only to the layout that gets written (a 12 MP RGBA copy is 48 MB).
+    let result = if img.color().has_alpha() {
+        let rgba = img.to_rgba8();
         enc.write_image(rgba.as_raw(), rgba.width(), rgba.height(), image::ExtendedColorType::Rgba8)
     } else {
         let rgb = img.to_rgb8();

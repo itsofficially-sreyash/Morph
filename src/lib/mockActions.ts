@@ -6,6 +6,8 @@ export interface MenuAction {
   id: string;
   label: string;
   hint: string;
+  /** Extensions this action is limited to (Rust: `Action::only`). */
+  only?: string[];
 }
 
 export interface MenuCategory {
@@ -22,6 +24,9 @@ const convert = (to: string): MenuAction => ({
   label: to.toUpperCase(),
   hint: `Convert to ${to.toUpperCase()}`,
 });
+
+/** Documents that can become DOCX/ODT/TXT; slides and spreadsheets only become PDFs. */
+const TEXT_DOCS = ["docx", "doc", "odt", "rtf", "txt"];
 
 export const CATEGORIES: MenuCategory[] = [
   {
@@ -84,12 +89,12 @@ export const CATEGORIES: MenuCategory[] = [
     id: "document",
     label: "Docs",
     hue: 210,
-    extensions: ["docx", "doc", "odt", "pptx", "xlsx", "rtf", "txt"],
+    extensions: ["docx", "doc", "odt", "pptx", "ppt", "odp", "xlsx", "xls", "ods", "rtf", "txt"],
     actions: [
-      { id: "to-pdf", label: "PDF", hint: "Export as PDF (needs LibreOffice)" },
-      convert("docx"),
-      convert("odt"),
-      convert("txt"),
+      { id: "to-pdf", label: "PDF", hint: "Save as PDF" },
+      { id: "convert:docx", label: "DOCX", hint: "Save as a Word document", only: TEXT_DOCS },
+      { id: "convert:odt", label: "ODT", hint: "Save as OpenDocument text", only: TEXT_DOCS },
+      { id: "convert:txt", label: "TXT", hint: "Save as plain text", only: TEXT_DOCS },
     ],
   },
 ];
@@ -98,6 +103,18 @@ export const CATEGORIES: MenuCategory[] = [
 export function categoriesFor(files: string[]): MenuCategory[] {
   const exts = new Set(files.map((f) => f.split(".").pop()?.toLowerCase() ?? ""));
   return CATEGORIES.filter((c) => c.extensions.some((e) => exts.has(e)));
+}
+
+const ext = (path: string) => path.split(".").pop()?.toLowerCase() ?? "";
+
+/** Whether `action` of `category` works on this file (Rust: `Action::accepts`). */
+export function actionAccepts(category: MenuCategory, action: MenuAction, path: string): boolean {
+  return category.extensions.includes(ext(path)) && (!action.only || action.only.includes(ext(path)));
+}
+
+/** The actions offered for these files: those that apply to at least one (Rust: `actions_for`). */
+export function actionsFor(category: MenuCategory, files: string[]): MenuAction[] {
+  return category.actions.filter((a) => files.some((f) => actionAccepts(category, a, f)));
 }
 
 export function fileName(path: string): string {

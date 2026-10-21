@@ -204,8 +204,36 @@ fn profile_url() -> String {
     if path.starts_with('/') { format!("file://{path}") } else { format!("file:///{path}") }
 }
 
+/// LibreOffice installs Writer, Calc and Impress as separate parts (Ubuntu ships some
+/// without Impress). Without the right one it prints "source file could not be loaded"
+/// and still exits 0, so check first and say what to install.
+fn libreoffice_part(soffice: &Path, fam: Family) -> Result<(), String> {
+    let (part, lib, package) = match fam {
+        Family::Word => ("Writer", "swlo", "libreoffice-writer"),
+        Family::Excel => ("Calc", "sclo", "libreoffice-calc"),
+        Family::PowerPoint => ("Impress", "sdlo", "libreoffice-impress"),
+    };
+    let file = |name: &str| if cfg!(windows) { format!("{name}.dll") } else { format!("lib{name}.so") };
+    let Some(program) = std::fs::canonicalize(soffice).ok().and_then(|p| p.parent().map(Path::to_path_buf)) else {
+        return Ok(());
+    };
+    // Only judge the usual layout: one library per part (some builds merge them all).
+    let split_layout = ["swlo", "sclo", "sdlo"].iter().any(|l| program.join(file(l)).is_file());
+    if !split_layout || program.join(file(lib)).is_file() {
+        return Ok(());
+    }
+    Err(if cfg!(windows) {
+        format!("Needs LibreOffice {part} (add it in the LibreOffice installer)")
+    } else {
+        format!("Needs LibreOffice {part}: sudo apt install {package}")
+    })
+}
+
 fn libreoffice(src: &Path, dst: &Path, ext: &str) -> Result<(), String> {
     let soffice = Tool::LibreOffice.find().ok_or("LibreOffice isn't installed")?;
+    if let Some(fam) = family(src) {
+        libreoffice_part(&soffice, fam)?;
+    }
     // LibreOffice picks the output name itself, so convert into a scratch folder first.
     let scratch: PathBuf = std::env::temp_dir().join(format!(
         "morph-office-{}-{}",
@@ -222,7 +250,7 @@ fn libreoffice(src: &Path, dst: &Path, ext: &str) -> Result<(), String> {
         let stem = src.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let produced = scratch.join(format!("{stem}.{ext}"));
         if !produced.is_file() {
-            return Err(format!("LibreOffice didn't produce a .{ext} file"));
+            return Err(format!("LibreOffice couldn't open {} (damaged or password-protected?)", super::name(src)));
         }
         // Rename fails across drives (temp is usually on C:), so fall back to copying.
         std::fs::rename(&produced, dst)

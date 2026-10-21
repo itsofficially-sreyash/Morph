@@ -3,7 +3,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
   import RadialMenu from "$lib/RadialMenu.svelte";
-  import { categoriesFor, fileName, type MenuCategory } from "$lib/mockActions";
+  import { actionAccepts, actionsFor, categoriesFor, fileName, type MenuCategory } from "$lib/mockActions";
   import type { RingItem } from "$lib/radial";
 
   interface ShownPayload {
@@ -31,7 +31,7 @@
     done
       ? []
       : current
-        ? current.actions.map((a) => ({ id: a.id, label: a.label, hint: a.hint, hue: current.hue }))
+        ? actionsFor(current, files ?? []).map((a) => ({ id: a.id, label: a.label, hint: a.hint, hue: current.hue }))
         : available.map((c) => ({ id: c.id, label: c.label, hint: `${c.actions.length} actions`, hue: c.hue })),
   );
 
@@ -113,7 +113,8 @@
       return;
     }
     const cat = current;
-    const relevant = (files ?? []).filter((f) => cat.extensions.includes(f.split(".").pop()?.toLowerCase() ?? ""));
+    const action = cat.actions.find((a) => a.id === item.id);
+    const relevant = (files ?? []).filter((f) => action && actionAccepts(cat, action, f));
     let result: { ok: boolean; message: string };
     if (inTauri) {
       try {

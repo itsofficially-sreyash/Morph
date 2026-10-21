@@ -276,8 +276,11 @@ pub fn run(settings: &Settings, req: &Request, ask: &dyn Fn(String) -> Answer) -
     if let Err(why) = actions::availability(action) {
         return Summary::failed(why);
     }
-    let inputs: Vec<PathBuf> = req.files.iter().filter(|f| category.accepts(f)).map(PathBuf::from).collect();
+    let inputs: Vec<PathBuf> = req.files.iter().filter(|f| action.accepts(category, f)).map(PathBuf::from).collect();
     if inputs.is_empty() {
+        if action.only.is_some() && req.files.iter().any(|f| category.accepts(f)) {
+            return Summary::failed("Slides and spreadsheets can only be saved as PDF");
+        }
         return Summary::failed(format!("None of these files are {} files", category.label.to_lowercase()));
     }
     if let Err(why) = actions::enough_files(category, action, inputs.len()) {
@@ -543,5 +546,14 @@ mod tests {
         assert_eq!(summarize(vec![Result1::NotSmaller(p("x.jpg"))]).message, "x.jpg is already as small as it gets");
         let s = summarize(vec![Result1::Failed("boom".into()), Result1::Failed("bang".into())]);
         assert_eq!((s.ok, s.message.as_str()), (false, "boom (and 1 more failed)"));
+    }
+
+    #[test]
+    fn slides_refuse_anything_but_pdf() {
+        let d = fresh_dir("slides");
+        let deck = d.join("deck.pptx");
+        std::fs::write(&deck, b"not really a deck").unwrap();
+        let s = run(&Settings::default(), &req(CategoryId::Document, "convert:docx", &[&deck]), &never_ask);
+        assert_eq!((s.ok, s.message.as_str()), (false, "Slides and spreadsheets can only be saved as PDF"));
     }
 }

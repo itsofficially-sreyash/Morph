@@ -156,10 +156,11 @@ impl Menu {
         }
         match self.current() {
             Some(c) => {
-                let matching = self.files.iter().flatten().filter(|f| c.accepts(f)).count();
-                c.actions
-                    .iter()
+                let files = self.files.iter().flatten();
+                c.actions_for(files.clone())
+                    .into_iter()
                     .map(|a| {
+                        let matching = files.clone().filter(|f| a.accepts(c, f)).count();
                         let ready = catalog::availability(a)
                             .map_err(str::to_string)
                             .and_then(|_| catalog::enough_files(c, a, matching));
@@ -266,8 +267,8 @@ impl Menu {
             self.active = Some(index);
             return Outcome::Redraw { new_ring: false };
         }
-        let action = &c.actions[index];
-        let files: Vec<String> = self.files.iter().flatten().filter(|f| c.accepts(f)).cloned().collect();
+        let action = c.actions_for(self.files.iter().flatten())[index];
+        let files: Vec<String> = self.files.iter().flatten().filter(|f| action.accepts(c, f)).cloned().collect();
         if let Some(kind) = action.window {
             return Outcome::OpenTool { kind, category: c.id, action: action.id, files };
         }
@@ -353,6 +354,20 @@ mod tests {
         assert_eq!(m.title(), "Image");
         assert_eq!(m.subtitle(), "2 files");
         assert!(!m.can_go_back());
+    }
+
+    #[test]
+    fn slides_offer_only_pdf() {
+        let mut m = Menu::default();
+        m.reset(files(&["deck.pptx"]));
+        assert_eq!(labels(&m), ["PDF"]);
+        m.reset(files(&["deck.pptx", "notes.docx"]));
+        assert_eq!(labels(&m), ["PDF", "DOCX", "ODT", "TXT"]);
+        // Picking DOCX sends only the text document.
+        match m.pick(1) {
+            Outcome::Chosen { action, files, .. } => assert_eq!((action, files), ("convert:docx", vec!["notes.docx".to_string()])),
+            other => panic!("unexpected {other:?}"),
+        }
     }
 
     #[test]
