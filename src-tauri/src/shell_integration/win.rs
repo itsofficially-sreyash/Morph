@@ -8,8 +8,8 @@ use std::path::Path;
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{ERROR_FILE_NOT_FOUND, WIN32_ERROR};
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegGetValueW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE,
-    REG_OPTION_NON_VOLATILE, REG_SZ, RRF_RT_REG_SZ,
+    RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE,
+    REG_OPTION_NON_VOLATILE, REG_SZ,
 };
 use windows::Win32::UI::Shell::{SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST};
 
@@ -77,6 +77,7 @@ pub fn remove() -> Result<(), String> {
 /// The command currently registered, if any.
 #[cfg(test)]
 pub fn registered_command() -> Option<String> {
+    use windows::Win32::System::Registry::{RegGetValueW, RRF_RT_REG_SZ};
     let mut buf = [0u16; 1024];
     let mut size = (buf.len() * 2) as u32;
     let err = unsafe {
