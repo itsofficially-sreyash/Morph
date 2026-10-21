@@ -37,8 +37,11 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>, hotkey: &str) -> Result<(), String>
     let result = (|| {
         let next = parse(hotkey)?;
         let mut current = state.current.lock().unwrap();
+        // Release builds only, like the other integrations: a shortcut left pointing at a
+        // debug build starts it after sign-in, without the dev server its windows load from.
+        // Dev builds fall back to the X11 grab (fires while an XWayland window has focus).
         #[cfg(target_os = "linux")]
-        if gnome::is_wayland_session() {
+        if gnome::is_wayland_session() && !cfg!(debug_assertions) {
             // Wayland lets no app grab keys globally; GNOME runs `morph --toggle` for us.
             let exe = crate::shell_integration::launcher_path()?;
             return gnome::install(hotkey, &exe);
@@ -69,7 +72,8 @@ pub fn remove_system_shortcut() -> Result<(), String> {
 }
 
 /// GNOME custom keyboard shortcut (Settings → Keyboard → Custom Shortcuts), written with
-/// `gsettings`. Each launch re-points it at this executable, like the right-click entry.
+/// `gsettings`. Each launch of a release build re-points it at this executable, like the
+/// right-click entry.
 #[cfg(target_os = "linux")]
 mod gnome {
     use std::path::Path;
