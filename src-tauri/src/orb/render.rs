@@ -69,7 +69,7 @@ fn rgba(r: u8, g: u8, b: u8, a: f32) -> Color {
     Color::from_rgba8(r, g, b, (a * 255.0).round() as u8)
 }
 
-/// Same values as the CSS variables in the web orb (`src/routes/overlay/+page.svelte`).
+/// The orb's colours for dark and light desktops.
 fn palette(dark: bool) -> Palette {
     if dark {
         Palette {

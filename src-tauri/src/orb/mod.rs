@@ -1,15 +1,23 @@
 //! The orb: the radial drop menu that opens at the cursor.
 //!
-//! On Windows it is a native, per-pixel-transparent popup drawn on the CPU (`win.rs`), so
-//! no WebView2 processes stay alive while Morph waits in the tray (AGENTS.md rule 10).
-//! Linux still uses the web overlay (`crate::overlay`) until a GTK presenter for the same
-//! renderer is built and tested.
+//! A native, per-pixel-transparent window drawn on the CPU by `render.rs`, so no web
+//! processes (WebView2, WebKit) stay alive while Morph waits in the tray (AGENTS.md
+//! rule 10). One behaviour model (`model.rs`), one presenter per system: `win.rs` (Win32
+//! layered window) and `gtk.rs` (GTK 3 with an RGBA visual).
 
 pub mod geometry;
 pub mod model;
+pub mod placement;
 pub mod render;
+#[cfg(target_os = "linux")]
+mod gtk;
 #[cfg(windows)]
 mod win;
+
+#[cfg(target_os = "linux")]
+use gtk as native;
+#[cfg(windows)]
+use win as native;
 
 use std::sync::OnceLock;
 
@@ -44,24 +52,17 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
             req,
             move |question| {
                 let (tx, rx) = std::sync::mpsc::channel();
-                #[cfg(windows)]
-                let _ = ask_app.run_on_main_thread(move || win::ask(job, question, tx));
-                #[cfg(not(windows))]
-                let _ = (&ask_app, question, tx.send(jobs::Answer::KeepBoth));
+                let _ = ask_app.run_on_main_thread(move || native::ask(job, question, tx));
                 // If the main thread goes away, never overwrite.
                 rx.recv().unwrap_or(jobs::Answer::KeepBoth)
             },
             move |summary| {
-                #[cfg(windows)]
-                let _ = done_app.run_on_main_thread(move || win::job_finished(job, summary));
-                #[cfg(not(windows))]
-                let _ = (&done_app, summary);
+                let _ = done_app.run_on_main_thread(move || native::job_finished(job, summary));
             },
         );
     }));
 }
 
-#[cfg_attr(not(windows), allow(dead_code))]
 fn start_job(job: u64, req: Request) {
     match STARTER.get() {
         Some(start) => start(job, req),
@@ -69,7 +70,6 @@ fn start_job(job: u64, req: Request) {
     }
 }
 
-#[cfg_attr(not(windows), allow(dead_code))]
 fn open_tool(kind: ToolKind, category: CategoryId, action: &'static str, files: Vec<String>) {
     match OPENER.get() {
         Some(open) => open(kind, category, action, files),
@@ -79,44 +79,23 @@ fn open_tool(kind: ToolKind, category: CategoryId, action: &'static str, files: 
 
 /// Opens the orb at the cursor. `files: None` shows the empty "Drop files" state.
 pub fn show_at_cursor<R: Runtime>(app: &AppHandle<R>, files: Option<Vec<String>>) {
-    #[cfg(windows)]
-    {
-        // The native window lives on the main thread, whose message loop Tauri pumps.
-        let _ = app.run_on_main_thread(move || win::show(files));
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = crate::overlay::show_at_cursor(app, files);
-    }
+    // The native window lives on the main thread, whose event loop Tauri runs.
+    let _ = app.run_on_main_thread(move || native::show(files));
 }
 
 /// Files from the right-click entry (`morph --open`). Explorer starts one launch per
 /// selected file, so launches arriving close together are gathered into one orb.
 pub fn open_files<R: Runtime>(app: &AppHandle<R>, files: Vec<String>) {
-    #[cfg(windows)]
-    {
-        let _ = app.run_on_main_thread(move || win::open_files(files));
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = crate::overlay::show_at_cursor(app, Some(files));
-    }
+    let _ = app.run_on_main_thread(move || native::open_files(files));
 }
 
 /// Hotkey / `--toggle`: open an empty orb at the cursor, or close it if it's open.
 pub fn toggle<R: Runtime>(app: &AppHandle<R>) {
-    #[cfg(windows)]
-    {
-        let _ = app.run_on_main_thread(|| {
-            if win::is_visible() {
-                win::hide();
-            } else {
-                win::show(None);
-            }
-        });
-    }
-    #[cfg(not(windows))]
-    {
-        crate::overlay::toggle(app);
-    }
+    let _ = app.run_on_main_thread(|| {
+        if native::is_visible() {
+            native::hide();
+        } else {
+            native::show(None);
+        }
+    });
 }

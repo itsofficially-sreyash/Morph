@@ -1,6 +1,5 @@
 //! The actions registry: every action the orb offers, which engine runs it, and whether
-//! it can run on this machine right now. The Linux web orb mirrors the labels in
-//! `src/lib/mockActions.ts` and asks Rust to run them (`jobs::run_action`).
+//! it can run on this machine right now.
 
 use crate::detect;
 use crate::tools::Tool;
@@ -173,20 +172,6 @@ impl Action {
     pub fn accepts(&self, category: &Category, path: &str) -> bool {
         let ext = std::path::Path::new(path).extension().map(|e| e.to_string_lossy().to_lowercase());
         category.accepts(path) && self.only.is_none_or(|only| ext.is_some_and(|e| only.contains(&e.as_str())))
-    }
-}
-
-impl CategoryId {
-    /// The lowercase names the web orb uses (`src/lib/mockActions.ts`).
-    pub fn parse(name: &str) -> Option<Self> {
-        Some(match name {
-            "image" => CategoryId::Image,
-            "video" => CategoryId::Video,
-            "audio" => CategoryId::Audio,
-            "pdf" => CategoryId::Pdf,
-            "document" => CategoryId::Document,
-            _ => return None,
-        })
     }
 }
 

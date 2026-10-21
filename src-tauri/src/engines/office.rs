@@ -91,6 +91,7 @@ pub fn convert(src: &Path, dst: &Path, ext: &str) -> Result<(), String> {
 /// `Quit()` takes no arguments here: Word declares its parameters by reference, and
 /// PowerShell refuses `Quit(0)` (which left Word running). The document is already
 /// closed without saving and alerts are off, so nothing can prompt.
+#[cfg(windows)]
 const OFFICE_SCRIPT: &str = r#"
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'

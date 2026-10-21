@@ -7,7 +7,6 @@ mod engines;
 mod hotkey;
 mod jobs;
 mod orb;
-mod overlay;
 mod settings;
 mod shell_integration;
 mod tools;
@@ -61,11 +60,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
             settings::set_settings,
-            overlay::hide_overlay,
-            overlay::overlay_open_tool,
-            overlay::overlay_answer,
             hotkey::hotkey_status,
-            jobs::run_action,
             toolwin::tool_info,
             toolwin::tool_parse_ranges,
             toolwin::tool_preview,
@@ -74,9 +69,6 @@ pub fn run() {
         .setup(|app| {
             tray::create(app.handle())?;
             orb::init(app.handle());
-            // Windows draws the orb natively (no WebView2 at idle); Linux keeps the web orb for now.
-            #[cfg(not(windows))]
-            overlay::create(app.handle())?;
             // A taken or unsupported hotkey must not stop Morph from starting; the
             // settings window shows the reason (see `hotkey_status`).
             let saved = settings::load(app.handle());
@@ -99,13 +91,6 @@ pub fn run() {
         .on_window_event(|window, event| match event {
             // Closing the settings window destroys it (see `tray::show_settings`); the
             // run loop below keeps Morph alive in the tray.
-            // Clicking outside the orb dismisses it, except while it waits for a drop.
-            WindowEvent::Focused(false) if window.label() == overlay::LABEL && overlay::hides_on_blur() => {
-                overlay::hide(window.app_handle());
-            }
-            WindowEvent::DragDrop(drag) if window.label() == overlay::LABEL => {
-                overlay::on_drag_drop(window, drag);
-            }
             WindowEvent::Destroyed if window.label().starts_with("tool-") => {
                 toolwin::closed(window.app_handle(), window.label());
             }

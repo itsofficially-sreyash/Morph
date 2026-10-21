@@ -46,7 +46,7 @@ use super::geometry as g;
 use super::model::{Key, Menu, Outcome};
 use crate::jobs::{Answer, Request, Summary};
 use super::render::{self, Fonts};
-use crate::overlay::{place, Rect};
+use super::placement::{place, Rect};
 
 const ANIM_TIMER: usize = 1;
 const DONE_TIMER: usize = 2;

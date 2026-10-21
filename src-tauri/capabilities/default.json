@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the settings window, the (Linux) web orb and the tool windows",
-  "windows": ["main", "overlay", "tool-*"],
+  "description": "Capability for the settings window and the tool windows",
+  "windows": ["main", "tool-*"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

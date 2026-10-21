@@ -1,5 +1,5 @@
 //! What the orb shows and how it reacts to input, independent of any window or renderer.
-//! The web orb (`src/routes/overlay/+page.svelte`) follows the same rules.
+//! Both presenters (`win.rs`, `gtk.rs`) drive this one model.
 
 use crate::actions::{self as catalog, Category, CategoryId, ToolKind};
 use crate::jobs::Answer;

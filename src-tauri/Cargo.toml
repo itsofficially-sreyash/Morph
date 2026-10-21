@@ -38,6 +38,10 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
 
+# The native orb's Linux presenter (`orb/gtk.rs`): the GTK 3 that Tauri already uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+
 # Native orb window on Windows (same version Tauri already pulls in).
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
