@@ -1,5 +1,5 @@
 //! Finds the external programs some engines need. Nothing is downloaded here:
-//! a tool is either next to `morph.exe` (bundled sidecar, step 7), installed, or missing,
+//! a tool is either next to `morph.exe` (bundled sidecar), installed, or missing,
 //! and the menu says which.
 
 use std::path::{Path, PathBuf};
@@ -7,16 +7,15 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     Ffmpeg,
-    #[allow(dead_code)] // the PDF actions switch to it when the qpdf sidecar ships (step 7)
-    Qpdf,
     LibreOffice,
 }
 
 impl Tool {
     fn exe_names(self) -> &'static [&'static str] {
         match self {
-            Tool::Ffmpeg => &["ffmpeg"],
-            Tool::Qpdf => &["qpdf"],
+            // The installer's copy is `morph-ffmpeg`, so it never clashes with (or shadows)
+            // a system `ffmpeg`, e.g. both in /usr/bin with the .deb.
+            Tool::Ffmpeg => &["morph-ffmpeg", "ffmpeg"],
             Tool::LibreOffice => &["soffice", "libreoffice"],
         }
     }
@@ -60,7 +59,7 @@ mod tests {
     #[test]
     fn missing_tool_is_none_not_a_panic() {
         // Whatever is installed on the test machine, lookup must not panic.
-        let _ = Tool::Qpdf.find();
+        let _ = Tool::Ffmpeg.find();
         let _ = Tool::LibreOffice.find();
     }
 }

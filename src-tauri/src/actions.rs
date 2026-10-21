@@ -193,7 +193,6 @@ pub fn availability(action: &Action) -> Result<(), &'static str> {
         Engine::Office => crate::engines::office::available(),
         Engine::External(tool) if tool.find().is_some() => Ok(()),
         Engine::External(Tool::Ffmpeg) => Err("Needs FFmpeg (included in the installer)"),
-        Engine::External(Tool::Qpdf) => Err("Needs qpdf"),
         Engine::External(Tool::LibreOffice) => Err("Install LibreOffice to enable"),
     }
 }
