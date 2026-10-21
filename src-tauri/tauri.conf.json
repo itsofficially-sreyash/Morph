@@ -18,12 +18,30 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Morph",
+    "category": "Utility",
+    "shortDescription": "Convert and edit files from a radial menu",
+    "longDescription": "Press a hotkey or right-click a file, then pick an action from a radial menu: convert, crop, resize, shrink and merge images, video, audio, PDFs and documents. Everything runs on your computer; nothing is uploaded.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "windows/nsis-hooks.nsh"
+      },
+      "wix": {
+        "fragmentPaths": [
+          "windows/remove-integration.wxs"
+        ],
+        "componentGroupRefs": [
+          "MorphRemoveIntegration"
+        ]
+      }
+    }
   }
 }
