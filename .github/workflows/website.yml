@@ -1,0 +1,27 @@
+# Rebuilds the website (Cloudflare Pages) so its version and download links follow the latest release.
+# Pushes to main already redeploy it; this covers publishing a release, and a daily run picks up
+# SourceForge mirror links once SourceForge has copied a new release.
+name: Website
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the Cloudflare Pages deploy hook
+        env:
+          HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Add the CLOUDFLARE_DEPLOY_HOOK secret (Cloudflare Pages → Settings → Deploy hooks)."
+            exit 1
+          fi
+          curl --fail-with-body -sS -X POST "$HOOK"
