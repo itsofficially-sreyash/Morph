@@ -33,14 +33,6 @@
       "nsis": {
         "installMode": "currentUser",
         "installerHooks": "windows/nsis-hooks.nsh"
-      },
-      "wix": {
-        "fragmentPaths": [
-          "windows/remove-integration.wxs"
-        ],
-        "componentGroupRefs": [
-          "MorphRemoveIntegration"
-        ]
       }
     },
     "copyright": "Copyright © 2026 Sreyash Singh. GPL-3.0-or-later.",
