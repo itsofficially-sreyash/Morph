@@ -1,0 +1,59 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0b0a10" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <script is:inline>
+      document.documentElement.classList.add('js');
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <slot />
+    <script>
+      // Fade sections in once as they scroll into view.
+      const items = document.querySelectorAll('[data-reveal]');
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            e.target.classList.add('in');
+            io.unobserve(e.target);
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
+      );
+      items.forEach((el) => io.observe(el));
+
+      // Point every "Download" button at the visitor's system.
+      const ua = navigator.userAgent;
+      const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+      const os = mobile ? 'mobile' : /Windows/i.test(ua) ? 'windows' : /Linux|X11|CrOS/i.test(ua) ? 'linux' : 'other';
+      document.documentElement.dataset.os = os;
+      document.querySelectorAll<HTMLAnchorElement>('[data-download]').forEach((a) => {
+        const target = a.dataset[os];
+        const label = a.dataset[`${os}Label`];
+        if (target) a.href = target;
+        const text = a.querySelector('[data-label]');
+        if (label && text) text.textContent = label;
+      });
+    </script>
+  </body>
+</html>

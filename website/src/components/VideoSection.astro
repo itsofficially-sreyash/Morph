@@ -1,0 +1,177 @@
+---
+// The full demo in a dark window frame, plus the lightbox the hero's "Watch" button opens.
+---
+
+<section class="video-section" id="video">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <h2>See it in 45 seconds.</h2>
+    </div>
+    <div class="window" data-reveal>
+      <div class="bar" aria-hidden="true">
+        <img src="/favicon.svg" width="14" height="14" alt="" />
+        <span>Morph in action</span>
+      </div>
+      <video
+        src="/media/morph_intro.mp4"
+        poster="/media/intro-poster.jpg"
+        width="1920"
+        height="1080"
+        controls
+        playsinline
+        preload="none"
+        aria-label="Demo video: Morph splitting, merging and cropping files"></video>
+    </div>
+  </div>
+</section>
+
+<dialog class="lightbox" data-lightbox aria-label="Demo video">
+  <form method="dialog">
+    <button class="close" aria-label="Close video">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+  </form>
+  <video src="/media/morph_intro.mp4" poster="/media/intro-poster.jpg" width="1920" height="1080" controls playsinline preload="none"></video>
+</dialog>
+
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>('[data-lightbox]')!;
+  const video = dialog.querySelector('video')!;
+  document.querySelectorAll('[data-open-video]').forEach((b) =>
+    b.addEventListener('click', () => {
+      dialog.showModal();
+      video.play().catch(() => {});
+    }),
+  );
+  dialog.addEventListener('close', () => video.pause());
+  // A click on the dark backdrop closes it too.
+  dialog.addEventListener('click', (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+</script>
+
+<style>
+  .window {
+    position: relative;
+    max-width: 980px;
+    margin-inline: auto;
+    border-radius: 18px;
+    background: #1a1820;
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 40px 100px -30px rgb(0 0 0 / 0.9);
+  }
+
+  .window::before {
+    content: '';
+    position: absolute;
+    inset: -12% -8%;
+    z-index: -1;
+    background: radial-gradient(closest-side, rgb(124 92 255 / 0.3), rgb(124 92 255 / 0.08) 60%, transparent);
+    pointer-events: none;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .window video {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 0 0 17px 17px;
+    background: #0e0d13;
+  }
+
+  .lightbox {
+    width: min(1100px, calc(100vw - 32px));
+    max-width: none;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    background: #0e0d13;
+    color: var(--text);
+    overflow: visible;
+    opacity: 0;
+    scale: 0.96;
+    transition:
+      opacity 280ms var(--ease-out),
+      scale 280ms var(--ease-out),
+      overlay 280ms allow-discrete,
+      display 280ms allow-discrete;
+  }
+
+  .lightbox[open] {
+    opacity: 1;
+    scale: 1;
+  }
+
+  @starting-style {
+    .lightbox[open] {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
+
+  .lightbox::backdrop {
+    background: rgb(5 4 8 / 0);
+    backdrop-filter: blur(0);
+    transition:
+      background-color 280ms var(--ease-out),
+      backdrop-filter 280ms var(--ease-out),
+      overlay 280ms allow-discrete,
+      display 280ms allow-discrete;
+  }
+
+  .lightbox[open]::backdrop {
+    background: rgb(5 4 8 / 0.82);
+    backdrop-filter: blur(6px);
+  }
+
+  @starting-style {
+    .lightbox[open]::backdrop {
+      background: rgb(5 4 8 / 0);
+      backdrop-filter: blur(0);
+    }
+  }
+
+  .lightbox video {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 15px;
+  }
+
+  .close {
+    position: absolute;
+    top: -52px;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .close:hover {
+    background: #2a2633;
+  }
+
+  .close svg {
+    width: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+</style>

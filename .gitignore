@@ -22,6 +22,8 @@ vite.config.ts.timestamp-*
 CLAUDE.md
 AGENTS.md
 .claude/
+.agents/
+skills-lock.json
 
 # Signing keys never belong in the repo
 *.key

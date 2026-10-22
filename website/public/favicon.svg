@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Morph app icon: the radial orb, with the top slice picked. Source for `npx tauri icon`. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9b82ff"/>
+      <stop offset="1" stop-color="#5130e0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="512" cy="512" r="496" fill="url(#bg)"/>
+  <path d="M337.1 161.2 A392 392 0 0 1 686.9 161.2 L628.9 277.5 A262 262 0 0 0 395.1 277.5 Z" fill="#fff" fill-opacity="1.0"/>
+  <path d="M728.4 185.1 A392 392 0 0 1 903.3 488.1 L773.5 496.0 A262 262 0 0 0 656.6 293.5 Z" fill="#fff" fill-opacity="0.38"/>
+  <path d="M903.3 535.9 A392 392 0 0 1 728.4 838.9 L656.6 730.5 A262 262 0 0 0 773.5 528.0 Z" fill="#fff" fill-opacity="0.38"/>
+  <path d="M686.9 862.8 A392 392 0 0 1 337.1 862.8 L395.1 746.5 A262 262 0 0 0 628.9 746.5 Z" fill="#fff" fill-opacity="0.38"/>
+  <path d="M295.6 838.9 A392 392 0 0 1 120.7 535.9 L250.5 528.0 A262 262 0 0 0 367.4 730.5 Z" fill="#fff" fill-opacity="0.38"/>
+  <path d="M120.7 488.1 A392 392 0 0 1 295.6 185.1 L367.4 293.5 A262 262 0 0 0 250.5 496.0 Z" fill="#fff" fill-opacity="0.38"/>
+  <circle cx="512" cy="512" r="196" fill="#fff" fill-opacity="0.96"/>
+  <circle cx="512" cy="512" r="78" fill="#6c4bf4"/>
+</svg>

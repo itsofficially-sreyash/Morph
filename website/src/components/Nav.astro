@@ -1,0 +1,112 @@
+---
+---
+
+<header class="nav" data-nav>
+  <div class="container nav-inner">
+    <a class="brand" href="#top" aria-label="Morph, back to top">
+      <img src="/favicon.svg" width="28" height="28" alt="" />
+      <span>Morph</span>
+    </a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <a class="btn btn-primary nav-cta" href="#download">Download</a>
+  </div>
+</header>
+
+<script>
+  // A border and darker background appear once the page scrolls under the bar.
+  const nav = document.querySelector('[data-nav]')!;
+  const sentinel = document.createElement('div');
+  sentinel.style.cssText = 'position:absolute;top:0;height:8px;width:1px;';
+  document.body.prepend(sentinel);
+  new IntersectionObserver(([e]) => nav.classList.toggle('scrolled', !e.isIntersecting)).observe(sentinel);
+</script>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid transparent;
+    transition:
+      background-color var(--dur) var(--ease-out),
+      border-color var(--dur) var(--ease-out);
+  }
+
+  .nav:global(.scrolled) {
+    background: rgb(11 10 16 / 0.78);
+    border-bottom-color: var(--border);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 68px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 650;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+  }
+
+  nav {
+    margin-left: auto;
+  }
+
+  ul {
+    display: flex;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition:
+      color var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+
+  nav a:hover {
+    color: var(--text);
+    background: rgb(255 255 255 / 0.05);
+  }
+
+  .nav-cta {
+    min-height: 40px;
+    padding: 0 18px;
+    font-size: 15px;
+  }
+
+  @media (max-width: 640px) {
+    nav {
+      display: none;
+    }
+
+    .nav-cta {
+      margin-left: auto;
+    }
+  }
+</style>

@@ -1,0 +1,187 @@
+---
+const tiles = [
+  {
+    key: 'image',
+    title: 'Images',
+    hue: 262,
+    text: 'Convert, resize, crop, shrink, or put them all in one PDF. iPhone HEIC photos included.',
+    formats: ['PNG', 'JPG', 'WEBP', 'AVIF', 'HEIC', 'BMP', 'TIFF', 'GIF', 'ICO'],
+  },
+  {
+    key: 'video',
+    title: 'Video',
+    hue: 335,
+    text: 'Convert, shrink, make a GIF, pull out the sound, or mute it.',
+    formats: ['MP4', 'MKV', 'WEBM', 'MOV', 'AVI'],
+  },
+  {
+    key: 'audio',
+    title: 'Audio',
+    hue: 172,
+    text: 'Convert, or even out the loudness.',
+    formats: ['MP3', 'WAV', 'FLAC', 'OGG', 'M4A'],
+  },
+  {
+    key: 'pdf',
+    title: 'PDF',
+    hue: 12,
+    text: 'Merge, split, shrink, rotate, or turn pages into images.',
+    formats: ['Merge', 'Split', 'Shrink', 'Rotate', 'Pages → PNG'],
+  },
+  {
+    key: 'docs',
+    title: 'Documents',
+    hue: 210,
+    text: 'Save as PDF, with the Microsoft Office or LibreOffice you already have.',
+    formats: ['Word', 'PowerPoint', 'Excel', 'OpenDocument', 'RTF', 'TXT'],
+  },
+];
+---
+
+<section id="features">
+  <div class="container">
+    <div class="section-head" data-reveal>
+      <span class="eyebrow">What it converts</span>
+      <h2>One orb. Five kinds of files.</h2>
+      <p>Drop a mix and Morph sorts them out. Results are saved next to the originals, and nothing is ever replaced without asking.</p>
+    </div>
+
+    <div class="bento">
+      {
+        tiles.map((t, i) => (
+          <article class={`tile card ${t.key}`} style={`--hue:${t.hue};--i:${i}`} data-reveal>
+            <div class="top">
+              <span class="badge" aria-hidden="true" />
+              <h3>{t.title}</h3>
+            </div>
+            <p>{t.text}</p>
+            <ul class="chips" aria-label={`${t.title} formats`}>
+              {t.formats.map((f) => (
+                <li>{f}</li>
+              ))}
+            </ul>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .bento {
+    display: grid;
+    gap: 16px;
+  }
+
+  @media (min-width: 720px) {
+    .bento {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .image {
+      grid-column: span 2;
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .bento {
+      grid-template-columns: repeat(6, 1fr);
+    }
+
+    .image {
+      grid-column: span 4;
+    }
+
+    .video,
+    .audio,
+    .pdf,
+    .docs {
+      grid-column: span 2;
+    }
+  }
+
+  .tile {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 28px;
+    overflow: hidden;
+    transition:
+      border-color var(--dur) var(--ease-out),
+      transform var(--dur) var(--ease-out);
+  }
+
+  /* A soft light in the tile's colour, like the orb's slice. */
+  .tile::before {
+    content: '';
+    position: absolute;
+    inset: auto -20% -60% auto;
+    width: 70%;
+    aspect-ratio: 1;
+    background: radial-gradient(closest-side, hsl(var(--hue) 70% 55% / 0.16), transparent);
+    pointer-events: none;
+    transition: opacity var(--dur-slow) var(--ease-out);
+    opacity: 0.7;
+  }
+
+  .tile:hover {
+    border-color: hsl(var(--hue) 60% 60% / 0.4);
+    transform: translateY(-2px);
+  }
+
+  .tile:hover::before {
+    opacity: 1;
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(145deg, hsl(var(--hue) 75% 62%), hsl(var(--hue) 60% 40%));
+    box-shadow: 0 6px 18px -6px hsl(var(--hue) 70% 50% / 0.7);
+  }
+
+  .image h3 {
+    font-size: 26px;
+  }
+
+  .tile p {
+    color: var(--muted);
+    max-width: 46ch;
+  }
+
+  .image p {
+    font-size: 18px;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: auto 0 0;
+    padding: 8px 0 0;
+    list-style: none;
+  }
+
+  .chips li {
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--hue) 50% 60% / 0.28);
+    background: hsl(var(--hue) 50% 50% / 0.08);
+    color: hsl(var(--hue) 80% 84%);
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+
+  .image .chips li {
+    padding: 7px 15px;
+    font-size: 15px;
+  }
+</style>

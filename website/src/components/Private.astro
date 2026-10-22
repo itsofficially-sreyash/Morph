@@ -1,0 +1,135 @@
+---
+// Key-shaped tiles: each one presses down a little on hover, like a key.
+const keys = [
+  {
+    title: 'Nothing leaves your computer',
+    text: 'Every conversion happens on your machine. It works offline.',
+    icon: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  },
+  {
+    title: 'No account. Ever.',
+    text: 'Download it and use it. No sign-up, no email, no trial.',
+    icon: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.4 3.6-5.5 7-5.5s6.2 2.1 7 5.5"/><path d="M4 4l16 16"/>',
+  },
+  {
+    title: 'About 2 MB when idle',
+    text: 'It waits in the tray using almost nothing, ready the moment you need it.',
+    icon: '<path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/>',
+  },
+  {
+    title: 'Never slows you down',
+    text: 'Conversions run quietly in the background, so your computer stays responsive.',
+    icon: '<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/><circle cx="12" cy="15" r="1.4"/>',
+  },
+  {
+    title: 'Never overwrites',
+    text: 'Results are saved next to the original, and Morph asks before replacing anything.',
+    icon: '<path d="M7 3.5h7l4 4V20.5H7z"/><path d="M13.5 3.5v4.5H18"/><path d="M10 14l2 2 3.5-4"/>',
+  },
+  {
+    title: 'Free and open source',
+    text: 'GPL licensed. Anyone can read the code and check what it does.',
+    icon: '<path d="M8.5 7 3.5 12l5 5"/><path d="M15.5 7l5 5-5 5"/><path d="M13.5 4.5l-3 15"/>',
+  },
+];
+---
+
+<section class="private">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <span class="eyebrow">Private and light</span>
+      <h2>Built to stay out of your way.</h2>
+    </div>
+    <ul class="keys">
+      {
+        keys.map((k, i) => (
+          <li class="key" style={`--i:${i}`} data-reveal>
+            <span class="cap">
+              <svg viewBox="0 0 24 24" aria-hidden="true" set:html={k.icon} />
+              <h3>{k.title}</h3>
+              <p>{k.text}</p>
+            </span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .keys {
+    display: grid;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  @media (min-width: 640px) {
+    .keys {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .keys {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  /* The key's dark edge sits under the cap; the cap slides down onto it on hover. */
+  .key {
+    border-radius: 22px;
+    background: #0d0c12;
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.04),
+      0 18px 36px -18px rgb(0 0 0 / 0.8);
+  }
+
+  .cap {
+    display: block;
+    height: 100%;
+    padding: 26px 26px 28px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #211e29, #18161e);
+    border: 1px solid #2e2a38;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      0 5px 0 #0d0c12;
+    transform: translateY(-5px);
+    transition:
+      transform 200ms var(--ease-out),
+      box-shadow 200ms var(--ease-out),
+      border-color 200ms var(--ease-out);
+  }
+
+  .key:hover .cap {
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      0 2px 0 #0d0c12;
+    border-color: rgb(155 130 255 / 0.35);
+  }
+
+  svg {
+    width: 26px;
+    height: 26px;
+    margin-bottom: 18px;
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  p {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 15.5px;
+    line-height: 1.55;
+  }
+</style>

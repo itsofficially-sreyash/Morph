@@ -1,0 +1,324 @@
+---
+import Orb from './Orb.svelte';
+import DownloadButton from './DownloadButton.astro';
+import { REPO_URL } from '../lib/release';
+
+const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DOCX → PDF', 'Big video → small'];
+---
+
+<section class="hero" id="top">
+  <div class="container hero-grid">
+    <div class="copy">
+      <p class="pill"><span class="dot" aria-hidden="true"></span>Free and open source · Windows &amp; Linux</p>
+      <h1><span class="line">Convert anything.</span> <span class="line soft">In one drop.</span></h1>
+      <p class="rotator">
+        Turn
+        <span class="swap" data-rotator aria-live="off">
+          {pairs.map((p, i) => <span class:list={['pair', { current: i === 0 }]} aria-hidden={i === 0 ? undefined : 'true'}>{p}</span>)}
+        </span>
+        without opening an app.
+      </p>
+      <p class="lede">
+        Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>, drop your files on the orb, and pick what you want.
+        Morph does the rest, right on your computer.
+      </p>
+      <div class="actions">
+        <DownloadButton large />
+        <button class="btn btn-large" type="button" data-open-video>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.6"></circle><path d="M10 8.6v6.8l5.6-3.4z" fill="currentColor"></path></svg>
+          Watch it in 45 seconds
+        </button>
+      </div>
+      <ul class="facts">
+        <li>Free</li>
+        <li>Works offline</li>
+        <li>No account</li>
+        <li>Nothing uploaded</li>
+      </ul>
+      <a class="repo" href={REPO_URL}>
+        <svg class="gh" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .9-.3 2.8 1a9.7 9.7 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8Z"></path>
+        </svg>
+        <span class="repo-text">
+          <strong>Open source on GitHub</strong>
+          <span>Like Morph? A star helps others find it.</span>
+        </span>
+        <span class="star">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.2 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"></path></svg>
+          Star
+        </span>
+      </a>
+    </div>
+    <div class="demo">
+      <Orb client:visible />
+    </div>
+  </div>
+</section>
+
+<script>
+  // Cycles the conversion pair. Stops on hover or focus, off screen, and with reduced motion.
+  const box = document.querySelector<HTMLElement>('[data-rotator]');
+  if (box && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const pairs = [...box.querySelectorAll<HTMLElement>('.pair')];
+    let i = 0;
+    let held = false;
+    let onScreen = true;
+    const fit = () => (box.style.width = `${pairs[i].offsetWidth}px`);
+    // The first size is set without animating; later changes slide.
+    const fitNow = () => {
+      box.style.transition = 'none';
+      fit();
+      box.offsetWidth;
+      box.style.transition = '';
+    };
+    fitNow();
+    document.fonts.ready.then(fitNow);
+    box.addEventListener('pointerenter', () => (held = true));
+    box.addEventListener('pointerleave', () => (held = false));
+    new IntersectionObserver(([e]) => (onScreen = e.isIntersecting)).observe(box);
+    setInterval(() => {
+      if (held || !onScreen || document.hidden) return;
+      const prev = pairs[i];
+      i = (i + 1) % pairs.length;
+      prev.classList.remove('current');
+      prev.classList.add('leaving');
+      setTimeout(() => prev.classList.remove('leaving'), 500);
+      pairs[i].classList.add('current');
+      fit();
+    }, 2600);
+  }
+</script>
+
+<style>
+  .hero {
+    padding-top: clamp(40px, 7vw, 88px);
+    padding-bottom: clamp(64px, 8vw, 104px);
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: 48px;
+    align-items: center;
+  }
+
+  @media (min-width: 1000px) {
+    .hero-grid {
+      grid-template-columns: 1.2fr 1fr;
+      gap: 40px;
+    }
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+    padding: 6px 14px 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: rgb(255 255 255 / 0.03);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 10px var(--teal);
+  }
+
+  h1 {
+    font-size: clamp(40px, 5.6vw, 70px);
+    letter-spacing: -0.045em;
+    line-height: 1.04;
+  }
+
+  .line {
+    display: block;
+  }
+
+  @media (min-width: 560px) {
+    .line {
+      white-space: nowrap;
+    }
+  }
+
+  .soft {
+    background: linear-gradient(100deg, #c9bcff 0%, var(--accent) 45%, #7d63f5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .rotator {
+    margin-top: 26px;
+    font-size: clamp(19px, 2.2vw, 23px);
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .swap {
+    position: relative;
+    display: inline-grid;
+    vertical-align: bottom;
+    height: 1.5em;
+    overflow: hidden;
+    transition: width 420ms var(--ease-out);
+  }
+
+  .pair {
+    grid-area: 1 / 1;
+    justify-self: start;
+    white-space: nowrap;
+    padding: 0 10px;
+    border-radius: 8px;
+    color: #d8cfff;
+    background: rgb(124 92 255 / 0.16);
+    text-shadow: 0 0 18px rgb(155 130 255 / 0.65);
+    opacity: 0;
+    transform: translateY(100%);
+    transition:
+      opacity 420ms var(--ease-out),
+      transform 420ms var(--ease-out);
+  }
+
+  .pair:global(.current) {
+    opacity: 1;
+    transform: none;
+  }
+
+  .pair:global(.leaving) {
+    opacity: 0;
+    transform: translateY(-100%);
+    transition-duration: 300ms;
+    transition-timing-function: var(--ease-in);
+  }
+
+  .lede {
+    margin-top: 18px;
+    max-width: 540px;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1.7;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .facts li {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .facts li::before {
+    content: '';
+    width: 14px;
+    height: 14px;
+    background: var(--teal);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  .repo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: fit-content;
+    max-width: 100%;
+    margin-top: 28px;
+    padding: 12px 12px 12px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    background: rgb(255 255 255 / 0.025);
+    text-decoration: none;
+    transition:
+      border-color var(--dur) var(--ease-out),
+      background-color var(--dur) var(--ease-out);
+  }
+
+  .repo:hover {
+    border-color: rgb(155 130 255 / 0.4);
+    background: rgb(124 92 255 / 0.06);
+  }
+
+  .gh {
+    width: 26px;
+    height: 26px;
+    flex: none;
+    fill: var(--text);
+  }
+
+  .repo-text {
+    display: grid;
+    line-height: 1.35;
+  }
+
+  .repo-text strong {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .repo-text span {
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+
+  .star {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    margin-left: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    font-size: 14px;
+    font-weight: 600;
+    transition:
+      background-color var(--dur) var(--ease-out),
+      border-color var(--dur) var(--ease-out);
+  }
+
+  .star svg {
+    width: 15px;
+    height: 15px;
+    fill: #f5c451;
+    transform-origin: 50% 55%;
+    transition: transform 420ms var(--ease-spring);
+  }
+
+  .repo:hover .star {
+    background: #2a2633;
+    border-color: #4a4558;
+  }
+
+  .repo:hover .star svg {
+    transform: rotate(72deg) scale(1.15);
+  }
+
+  @media (max-width: 520px) {
+    .actions :global(.btn) {
+      width: 100%;
+    }
+  }
+</style>

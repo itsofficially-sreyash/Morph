@@ -1,0 +1,273 @@
+---
+// Two small scenes that play once when they scroll into view: the shortcut opening the orb,
+// and the right-click menu landing on "Convert with Morph".
+const hues = [262, 335, 172, 12, 210];
+const C = 60;
+const seg = (i: number) => {
+  const span = 72;
+  const a0 = ((i * span - span / 2 + 2 - 90) * Math.PI) / 180;
+  const a1 = ((i * span + span / 2 - 2 - 90) * Math.PI) / 180;
+  const p = (r: number, a: number) => `${(C + r * Math.cos(a)).toFixed(2)} ${(C + r * Math.sin(a)).toFixed(2)}`;
+  return `M${p(52, a0)}A52 52 0 0 1 ${p(52, a1)}L${p(22, a1)}A22 22 0 0 0 ${p(22, a0)}Z`;
+};
+---
+
+<section id="how">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <span class="eyebrow">How it works</span>
+      <h2>Two ways in. Nothing to learn.</h2>
+    </div>
+
+    <div class="grid">
+      <article class="card way" data-reveal data-scene>
+        <div class="scene desk" aria-hidden="true">
+          <div class="keys">
+            <kbd style="--k:0">Ctrl</kbd><span>+</span><kbd style="--k:1">Shift</kbd><span>+</span><kbd style="--k:2">Space</kbd>
+          </div>
+          <svg class="mini-orb" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="58" fill="rgb(24 22 30 / 0.97)" stroke="rgb(255 255 255 / 0.12)"></circle>
+            {hues.map((h, i) => <path d={seg(i)} fill={`hsl(${h} 55% ${i === 0 ? 58 : 28}%)`} style={`--s:${i}`}></path>)}
+            <circle cx="60" cy="60" r="18" fill="#221f2a" stroke="rgb(255 255 255 / 0.1)"></circle>
+          </svg>
+          <svg class="cursor" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L10 19z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"></path></svg>
+        </div>
+        <div class="text">
+          <h3>The shortcut</h3>
+          <p>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> anywhere. The orb appears right at your mouse.</p>
+        </div>
+      </article>
+
+      <article class="card way" data-reveal data-scene style="--i:1">
+        <div class="scene files-scene" aria-hidden="true">
+          <div class="menu">
+            <div>Open</div>
+            <div>Copy</div>
+            <div>Rename</div>
+            <hr />
+            <div class="morph">
+              <img src="/favicon.svg" width="16" height="16" alt="" />Convert with Morph
+            </div>
+            <hr />
+            <div>Properties</div>
+            <span class="highlight"></span>
+          </div>
+        </div>
+        <div class="text">
+          <h3>The right-click</h3>
+          <p>Select files, right-click, and choose <strong>Convert with Morph</strong>. Works in File Explorer and Linux file managers.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<script>
+  const scenes = document.querySelectorAll('[data-scene]');
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add('play');
+        io.unobserve(e.target);
+      }
+    },
+    { threshold: 0.5 },
+  );
+  scenes.forEach((s) => io.observe(s));
+</script>
+
+<style>
+  .grid {
+    display: grid;
+    gap: 20px;
+  }
+
+  @media (min-width: 820px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .way {
+    overflow: hidden;
+  }
+
+  .scene {
+    position: relative;
+    height: 260px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgb(124 92 255 / 0.14), transparent 60%),
+      linear-gradient(180deg, #14121a, #100e15);
+    overflow: hidden;
+  }
+
+  .text {
+    padding: 26px 28px 30px;
+  }
+
+  .text p {
+    margin-top: 8px;
+    color: var(--muted);
+  }
+
+  /* Shortcut scene */
+  .keys {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    translate: -50% 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .keys kbd {
+    padding: 6px 12px 7px;
+    font-size: 14px;
+    border-bottom-width: 3px;
+    transition:
+      transform 140ms var(--ease-out),
+      border-bottom-width 140ms var(--ease-out),
+      background-color 140ms var(--ease-out);
+  }
+
+  .play .keys kbd {
+    animation: press 520ms var(--ease-out) both;
+    animation-delay: calc(300ms + var(--k) * 140ms);
+  }
+
+  @keyframes press {
+    0%,
+    100% {
+      transform: none;
+      background: var(--surface-2);
+    }
+    35% {
+      transform: translateY(2px);
+      background: #2f2a3d;
+      border-color: var(--accent);
+    }
+  }
+
+  .mini-orb {
+    position: absolute;
+    left: 50%;
+    top: 34px;
+    width: 140px;
+    translate: -50% 0;
+    opacity: 0;
+    scale: 0.72;
+    filter: drop-shadow(0 18px 30px rgb(0 0 0 / 0.5));
+  }
+
+  .play .mini-orb {
+    animation: orb-in 480ms var(--ease-out) 900ms both;
+  }
+
+  @keyframes orb-in {
+    from {
+      opacity: 0;
+      scale: 0.72;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  .cursor {
+    position: absolute;
+    left: calc(50% + 6px);
+    top: 100px;
+    width: 20px;
+    opacity: 0.95;
+  }
+
+  /* Right-click scene */
+  .menu {
+    position: absolute;
+    left: 50%;
+    top: 30px;
+    translate: -50% 0;
+    width: 220px;
+    padding: 6px;
+    border-radius: 10px;
+    background: #24222b;
+    border: 1px solid #3a3644;
+    box-shadow: 0 20px 40px -12px rgb(0 0 0 / 0.7);
+    font-size: 13.5px;
+    color: #d6d3dd;
+  }
+
+  .menu div {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 30px;
+    padding: 0 10px 0 35px;
+  }
+
+  .menu .morph {
+    padding-left: 10px;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .menu hr {
+    margin: 4px 6px;
+    border: 0;
+    border-top: 1px solid #3a3644;
+  }
+
+  /* The highlight moves down the menu and stops on "Convert with Morph". */
+  .highlight {
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    top: 6px;
+    height: 30px;
+    border-radius: 6px;
+    background: rgb(108 75 244 / 0.85);
+    opacity: 0;
+  }
+
+  .play .highlight {
+    animation: walk 1500ms var(--ease-out) 300ms both;
+  }
+
+  @keyframes walk {
+    0% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+    12% {
+      opacity: 0.35;
+    }
+    55% {
+      opacity: 0.35;
+      transform: translateY(60px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(99px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mini-orb {
+      opacity: 1;
+      scale: 1;
+    }
+
+    .highlight {
+      opacity: 1;
+      transform: translateY(99px);
+    }
+  }
+</style>

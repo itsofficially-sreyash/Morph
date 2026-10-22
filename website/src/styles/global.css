@@ -1,0 +1,315 @@
+@import '@fontsource-variable/inter';
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0b0a10;
+  --surface: #16141c;
+  --surface-2: #1d1a25;
+  --border: #26232f;
+  --border-strong: #353140;
+  --text: #f1eff6;
+  --muted: #a19dad;
+  --accent: #9b82ff;
+  --accent-strong: #6c4bf4;
+  --accent-hover: #7b5df7;
+  --teal: #19c3b2;
+
+  /* Category hues, the same as the orb's (src-tauri/src/actions.rs). */
+  --hue-image: 262;
+  --hue-video: 335;
+  --hue-audio: 172;
+  --hue-pdf: 12;
+  --hue-docs: 210;
+
+  --font: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 24px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 160ms;
+  --dur: 280ms;
+  --dur-slow: 560ms;
+
+  --gutter: clamp(16px, 4vw, 32px);
+  --max: 1120px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+  -webkit-text-size-adjust: 100%;
+  interpolate-size: allow-keywords;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+/* Very light grain so the dark background isn't flat. A fixed layer, so scrolling never repaints it. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+main,
+header,
+footer {
+  position: relative;
+  z-index: 1;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+h2 {
+  font-size: clamp(32px, 4.6vw, 52px);
+}
+
+h3 {
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+kbd {
+  font: inherit;
+  font-size: 0.86em;
+  font-weight: 600;
+  padding: 0.1em 0.5em 0.15em;
+  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  white-space: nowrap;
+}
+
+.container {
+  width: 100%;
+  max-width: calc(var(--max) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+section {
+  padding-block: clamp(72px, 11vw, 136px);
+}
+
+.section-head {
+  max-width: 680px;
+  margin-bottom: clamp(36px, 5vw, 56px);
+}
+
+.section-head.center {
+  margin-inline: auto;
+  text-align: center;
+}
+
+.section-head p {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Buttons */
+.btn {
+  --btn-bg: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--btn-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.btn:hover {
+  border-color: #4a4558;
+  background: #24212d;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.btn-primary {
+  background: var(--accent-strong);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 28px -10px rgb(108 75 244 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: transparent;
+  box-shadow: 0 10px 34px -10px rgb(123 93 247 / 0.85), inset 0 1px 0 rgb(255 255 255 / 0.22);
+}
+
+.btn-large {
+  min-height: 56px;
+  padding: 0 28px;
+  font-size: 17px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.btn:focus-visible {
+  border-radius: 999px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent-strong);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur) var(--ease-out);
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Cards */
+.card {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%), var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+}
+
+/* Scroll reveal: only when JavaScript runs (html.js), so the page is complete without it. */
+/* An animation on `translate`, so it never fights an element's own hover transitions. */
+.js [data-reveal] {
+  opacity: 0;
+}
+
+.js [data-reveal].in {
+  animation: reveal 700ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .js [data-reveal] {
+    opacity: 1;
+  }
+}

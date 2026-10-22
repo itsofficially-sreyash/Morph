@@ -1,0 +1,83 @@
+---
+import { REPO_URL } from '../lib/release';
+---
+
+<footer>
+  <div class="container inner">
+    <div class="brand">
+      <img src="/favicon.svg" width="28" height="28" alt="" />
+      <div>
+        <strong>Morph</strong>
+        <p>Convert anything. In one drop.</p>
+      </div>
+    </div>
+    <nav aria-label="Footer">
+      <a href="#download">Download</a>
+      <a href={REPO_URL}>Source code</a>
+      <a href={`${REPO_URL}/issues/new/choose`}>Report a problem</a>
+      <a href={`${REPO_URL}/blob/main/LICENSE`}>Licence (GPL-3.0)</a>
+    </nav>
+  </div>
+  <div class="container legal">
+    <p>This site uses no cookies and no tracking.</p>
+    <p>© 2026 Sreyash Singh</p>
+  </div>
+</footer>
+
+<style>
+  footer {
+    border-top: 1px solid var(--border);
+    padding-block: 48px 36px;
+  }
+
+  .inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand p {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+  }
+
+  nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 15px;
+    text-decoration: none;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  nav a:hover {
+    color: var(--text);
+  }
+
+  .legal {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 28px;
+    color: #7c788a;
+    font-size: 13.5px;
+  }
+</style>

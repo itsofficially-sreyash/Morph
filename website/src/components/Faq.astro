@@ -1,0 +1,131 @@
+---
+const faqs = [
+  { q: 'Is it really free?', a: 'Yes. Morph is free and open source: no trial, no ads, no paid version.' },
+  { q: 'Does it upload my files?', a: 'No. Everything happens on your computer, and it works offline.' },
+  {
+    q: 'Does it ever go online?',
+    a: 'Only to check for a new version when it starts. Updates are installed only when you say so, and you can turn the check off in Settings.',
+  },
+  {
+    q: 'Why does Windows warn me when I install it?',
+    a: 'Windows shows <em>“Windows protected your PC”</em> for apps that aren’t code-signed yet. Morph is new, so click <strong>More info</strong>, then <strong>Run anyway</strong>.',
+  },
+  {
+    q: 'Which formats does it handle?',
+    a: 'Images, video, audio, PDF and documents. See <a href="#features">the full list</a>.',
+  },
+  {
+    q: 'Do I need Microsoft Office?',
+    a: 'Only for Word, Excel and PowerPoint files. LibreOffice works too. Everything else works out of the box.',
+  },
+  { q: 'Is there a Mac version?', a: 'Not yet. Morph is for Windows and Linux for now.' },
+  {
+    q: 'How do I uninstall it?',
+    a: 'On Windows: Settings → Apps → Morph → Uninstall. On Linux: from your software centre, or delete the AppImage.',
+  },
+];
+---
+
+<section class="faq" id="faq">
+  <div class="container narrow">
+    <div class="section-head center" data-reveal>
+      <h2>Questions</h2>
+    </div>
+    <div class="list" data-reveal>
+      {
+        faqs.map((f) => (
+          <details name="faq">
+            <summary>
+              {f.q}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9.5l6 6 6-6" />
+              </svg>
+            </summary>
+            <p set:html={f.a} />
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .narrow {
+    max-width: calc(760px + 2 * var(--gutter));
+  }
+
+  .list {
+    border-top: 1px solid var(--border);
+  }
+
+  details {
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Smooth open/close where the browser supports animating to `auto` height. */
+  details::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size 320ms var(--ease-out),
+      content-visibility 320ms allow-discrete;
+  }
+
+  details[open]::details-content {
+    block-size: auto;
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 64px;
+    padding: 16px 4px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    transition: color var(--dur-fast) var(--ease-out);
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:hover {
+    color: #fff;
+  }
+
+  summary svg {
+    width: 20px;
+    flex: none;
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 320ms var(--ease-out);
+  }
+
+  details[open] summary svg {
+    transform: rotate(180deg);
+  }
+
+  details p {
+    padding: 0 4px 22px;
+    color: var(--muted);
+    max-width: 62ch;
+  }
+
+  details p :global(strong),
+  details p :global(em) {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  details p :global(a) {
+    color: var(--accent);
+    text-underline-offset: 3px;
+  }
+</style>

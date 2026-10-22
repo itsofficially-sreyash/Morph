@@ -1,0 +1,18 @@
+{
+  "name": "morph-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/copy-media.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/copy-media.mjs",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "^7.2.5",
+    "@fontsource-variable/inter": "^5.3.0",
+    "astro": "^5.18.2",
+    "svelte": "^5.57.2"
+  }
+}

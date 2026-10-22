@@ -1,0 +1,241 @@
+---
+import { latestRelease, RELEASES_URL } from '../lib/release';
+
+const r = await latestRelease();
+const a = r.assets;
+---
+
+<section class="download" id="download">
+  <div class="container">
+    <div class="section-head center" data-reveal>
+      <h2>Get Morph.</h2>
+      <p>Free, for Windows and Linux. Version {r.version}.</p>
+    </div>
+
+    <div class="cards">
+      <article class="card os" data-os-card="windows" data-reveal>
+        <div class="os-head">
+          <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 5.1 10.4 4v7.2H3zM11.4 3.9 21 2.5v8.7h-9.6zM3 12.2h7.4v7.3L3 18.4zM11.4 12.2H21v8.8l-9.6-1.4z"></path>
+          </svg>
+          <div>
+            <h3>Windows</h3>
+            <p class="req">Windows 10 and 11, 64-bit</p>
+          </div>
+          <span class="yours">Your system</span>
+        </div>
+        <a class="btn btn-primary btn-large" href={a.windows.url}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 19.5h14"></path></svg>
+          Download for Windows
+        </a>
+        <p class="meta">{a.windows.mb} MB · Setup wizard · No admin rights needed</p>
+        <div class="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6v.2"></path></svg>
+          <p>
+            Windows may say <em>“Windows protected your PC”</em> because Morph is new and not code-signed yet. Click
+            <strong>More info</strong>, then <strong>Run anyway</strong>.
+          </p>
+        </div>
+      </article>
+
+      <article class="card os" data-os-card="linux" data-reveal style="--i:1">
+        <div class="os-head">
+          <svg class="logo" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+            <path d="M12 2.8c-2.6 0-3.9 2.1-3.9 4.9 0 1.6-.6 2.7-1.6 4.2-1.3 1.9-2.4 4-2.1 6.1.3 2 2.2 2.8 3.8 2.2 1.1-.4 2.2-.7 3.8-.7s2.7.3 3.8.7c1.6.6 3.5-.2 3.8-2.2.3-2.1-.8-4.2-2.1-6.1-1-1.5-1.6-2.6-1.6-4.2 0-2.8-1.3-4.9-3.9-4.9Z"></path>
+            <path d="M10 13.2c.6 1 1.2 1.4 2 1.4s1.4-.4 2-1.4"></path>
+          </svg>
+          <div>
+            <h3>Linux</h3>
+            <p class="req">64-bit (x86_64)</p>
+          </div>
+          <span class="yours">Your system</span>
+        </div>
+        <a class="btn btn-primary btn-large" href={a.deb.url}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 19.5h14"></path></svg>
+          Download .deb
+        </a>
+        <p class="meta">For Ubuntu, Debian and Linux Mint · {a.deb.mb} MB · Opens in your software centre</p>
+        <ul class="alts">
+          <li>
+            <a href={a.rpm.url}>
+              <span><strong>.rpm</strong> for Fedora and openSUSE</span>
+              <span class="size">{a.rpm.mb} MB</span>
+            </a>
+          </li>
+          <li>
+            <a href={a.appimage.url}>
+              <span><strong>AppImage</strong> for any other Linux</span>
+              <span class="size">{a.appimage.mb} MB</span>
+            </a>
+          </li>
+        </ul>
+      </article>
+    </div>
+
+    <p class="small" data-reveal>
+      Updates arrive inside the app, and every download is signed. ·
+      <a href={RELEASES_URL}>All downloads on GitHub</a>
+    </p>
+    <p class="small mac" data-reveal>Using a Mac? Morph isn’t available for macOS yet.</p>
+  </div>
+</section>
+
+<style>
+  .cards {
+    display: grid;
+    gap: 20px;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+
+  @media (min-width: 860px) {
+    .cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .os {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 30px;
+    transition:
+      border-color var(--dur) var(--ease-out),
+      box-shadow var(--dur) var(--ease-out);
+  }
+
+  .os-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo {
+    width: 40px;
+    height: 40px;
+    padding: 9px;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    fill: var(--text);
+    color: var(--text);
+  }
+
+  .req {
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  .yours {
+    display: none;
+    margin-left: auto;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgb(25 195 178 / 0.12);
+    color: var(--teal);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  :global([data-os='windows']) [data-os-card='windows'],
+  :global([data-os='linux']) [data-os-card='linux'] {
+    border-color: rgb(155 130 255 / 0.45);
+    box-shadow: 0 0 0 4px rgb(124 92 255 / 0.08), 0 30px 60px -30px rgb(108 75 244 / 0.45);
+  }
+
+  :global([data-os='windows']) [data-os-card='windows'] .yours,
+  :global([data-os='linux']) [data-os-card='linux'] .yours {
+    display: inline-block;
+  }
+
+  .meta {
+    margin-top: -6px;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  .note {
+    display: flex;
+    gap: 12px;
+    margin-top: auto;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgb(255 255 255 / 0.03);
+    border: 1px solid var(--border);
+    font-size: 14.5px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .note svg {
+    width: 20px;
+    flex: none;
+    margin-top: 1px;
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+  }
+
+  .note strong,
+  .note em {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  .alts {
+    display: grid;
+    gap: 8px;
+    margin: auto 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .alts a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgb(255 255 255 / 0.02);
+    color: var(--muted);
+    font-size: 15px;
+    text-decoration: none;
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out);
+  }
+
+  .alts a:hover {
+    border-color: var(--border-strong);
+    background: rgb(255 255 255 / 0.05);
+  }
+
+  .alts strong {
+    color: var(--text);
+  }
+
+  .size {
+    flex: none;
+    font-size: 13.5px;
+  }
+
+  .small {
+    margin-top: 28px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14.5px;
+  }
+
+  .small a {
+    color: var(--text);
+    text-underline-offset: 3px;
+  }
+
+  .mac {
+    margin-top: 6px;
+  }
+</style>

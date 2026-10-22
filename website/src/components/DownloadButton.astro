@@ -1,0 +1,28 @@
+---
+// The main download button. Without JavaScript it jumps to the download section;
+// with it, it downloads the installer for the visitor's system (Base.astro).
+import { latestRelease } from '../lib/release';
+
+interface Props {
+  large?: boolean;
+}
+const { large = false } = Astro.props;
+const r = await latestRelease();
+---
+
+<a
+  class:list={['btn', 'btn-primary', { 'btn-large': large }]}
+  href="#download"
+  data-download
+  data-windows={r.assets.windows.url}
+  data-windows-label="Download for Windows"
+  data-linux="#download"
+  data-linux-label="Download for Linux"
+  data-mobile-label="Get it for your computer"
+  data-other-label="Windows & Linux downloads"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 19.5h14"></path>
+  </svg>
+  <span data-label>Download Morph</span>
+</a>
