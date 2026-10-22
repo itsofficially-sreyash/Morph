@@ -6,6 +6,7 @@ interface Props {
   description: string;
 }
 const { title, description } = Astro.props;
+const image = new URL('/og.jpg', Astro.site ?? Astro.url).href;
 ---
 
 <!doctype html>
@@ -20,6 +21,11 @@ const { title, description } = Astro.props;
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:image" content={image} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Morph's website: “Convert anything. In one drop.” next to the orb" />
+    <meta name="twitter:card" content="summary_large_image" />
     <script is:inline>
       document.documentElement.classList.add('js');
     </script>

@@ -160,9 +160,10 @@ const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DO
     line-height: 1.5;
   }
 
+  /* Only the current pair takes up space, so the box fits it even without JavaScript. */
   .swap {
     position: relative;
-    display: inline-grid;
+    display: inline-block;
     vertical-align: bottom;
     height: 1.5em;
     overflow: hidden;
@@ -170,8 +171,10 @@ const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DO
   }
 
   .pair {
-    grid-area: 1 / 1;
-    justify-self: start;
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-block;
     white-space: nowrap;
     padding: 0 10px;
     border-radius: 8px;
@@ -186,6 +189,7 @@ const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DO
   }
 
   .pair:global(.current) {
+    position: relative;
     opacity: 1;
     transform: none;
   }
