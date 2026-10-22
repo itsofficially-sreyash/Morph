@@ -49,9 +49,17 @@ impl H264 {
             (H264::X264, true) => &["-c:v", "libx264", "-preset", "veryfast", "-crf", "28"],
             (H264::MediaFoundation, false) => &["-c:v", "h264_mf", "-rate_control", "quality", "-quality", "60"],
             (H264::MediaFoundation, true) => &["-c:v", "h264_mf", "-rate_control", "quality", "-quality", "35"],
-            // Not tested yet (no FFmpeg with OpenH264 on the dev machines).
-            (H264::OpenH264, false) => &["-c:v", "libopenh264", "-rc_mode", "quality", "-b:v", "5M"],
-            (H264::OpenH264, true) => &["-c:v", "libopenh264", "-rc_mode", "quality", "-b:v", "1500k"],
+            // OpenH264 has no CRF: its bitrate is a ceiling that capped detailed video (a 4K
+            // clip at 5 Mbit/s). A fixed quantiser (qmin = qmax) under a ceiling that never
+            // binds follows the content like CRF does. Measured on Ubuntu (bundled FFmpeg 9.0)
+            // against x264 CRF 23 / 28: a real 1080p video at the same SSIM in half the size;
+            // a synthetic 720p clip at equal SSIM but larger (Shrink keeps only smaller files).
+            (H264::OpenH264, false) => {
+                &["-c:v", "libopenh264", "-rc_mode", "quality", "-b:v", "100M", "-qmin", "24", "-qmax", "24"]
+            }
+            (H264::OpenH264, true) => {
+                &["-c:v", "libopenh264", "-rc_mode", "quality", "-b:v", "100M", "-qmin", "30", "-qmax", "30"]
+            }
         }
     }
 }
@@ -197,16 +205,20 @@ mod tests {
             run(CategoryId::Video, action, &clip, &out).unwrap_or_else(|e| panic!("{action}: {e}"));
             assert!(std::fs::metadata(&out).unwrap().len() > 0, "{action} produced an empty file");
         }
-        // Windows' own encoder, which the bundled LGPL FFmpeg uses, whatever this FFmpeg prefers.
+        // The encoders the bundled LGPL FFmpeg uses (Windows' own, and OpenH264 on Linux),
+        // whatever this FFmpeg prefers.
         let mut list = super::super::background_command(&ff);
         list.args(["-hide_banner", "-encoders"]);
         let encoders = String::from_utf8_lossy(&super::super::run_capture(list, "FFmpeg").unwrap()).into_owned();
-        if encoders.contains(" h264_mf ") {
+        for (name, enc) in [("h264_mf", H264::MediaFoundation), ("libopenh264", H264::OpenH264)] {
+            if !encoders.contains(&format!(" {name} ")) {
+                continue;
+            }
             for action in ["convert:mp4", "compress"] {
-                let out = d.join(format!("mf-{}.mp4", action.replace(':', "-")));
+                let out = d.join(format!("{name}-{}.mp4", action.replace(':', "-")));
                 let mut cmd = std::process::Command::new(&ff);
-                cmd.args(args(CategoryId::Video, action, &clip, &out, 2, Some(H264::MediaFoundation)).unwrap());
-                assert!(cmd.status().unwrap().success(), "h264_mf {action}");
+                cmd.args(args(CategoryId::Video, action, &clip, &out, 2, Some(enc)).unwrap());
+                assert!(cmd.status().unwrap().success(), "{name} {action}");
                 assert!(std::fs::metadata(&out).unwrap().len() > 0);
             }
         }
