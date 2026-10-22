@@ -14,7 +14,13 @@ Press a shortcut, drop files on the orb, pick what to do. Everything runs on you
 
 </div>
 
-<!-- A short GIF of the orb goes here: docs/demo.gif -->
+<div align="center">
+
+<a href="docs/morph_intro.mp4"><img src="docs/morph_intro.gif" width="720" alt="Morph in action: the orb opens, PDFs are split and merged, and a photo is cropped"></a>
+
+<sub>Click the animation to watch the full video with sound.</sub>
+
+</div>
 
 ## How it works
 
