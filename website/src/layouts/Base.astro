@@ -59,6 +59,13 @@ const image = new URL('/og.jpg', Astro.site ?? Astro.url).href;
         if (target) a.href = target;
         const text = a.querySelector('[data-label]');
         if (label && text) text.textContent = label;
+        // After a direct download starts, offer the mirror in case GitHub is blocked on this network.
+        const mirror = a.dataset[`${os}Mirror`];
+        const hint = document.querySelector<HTMLElement>('[data-mirror-hint]');
+        if (mirror && hint) {
+          hint.querySelector('a')!.href = mirror;
+          a.addEventListener('click', () => setTimeout(() => (hint.hidden = false), 1500));
+        }
       });
     </script>
   </body>

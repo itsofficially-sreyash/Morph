@@ -28,7 +28,15 @@ const a = r.assets;
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 19.5h14"></path></svg>
           Download for Windows
         </a>
-        <p class="meta">{a.windows.mb} MB · Setup wizard · No admin rights needed</p>
+        <p class="meta">
+          {a.windows.mb} MB · Setup wizard · No admin rights needed
+          {a.windows.mirror && (
+            <>
+              <br />
+              Download not starting? <a href={a.windows.mirror}>Use the mirror</a>
+            </>
+          )}
+        </p>
         <div class="note">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6v.2"></path></svg>
           <p>
@@ -54,27 +62,44 @@ const a = r.assets;
           <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"></path><path d="M7 10.5l5 5 5-5"></path><path d="M5 19.5h14"></path></svg>
           Download .deb
         </a>
-        <p class="meta">For Ubuntu, Debian and Linux Mint · {a.deb.mb} MB · Opens in your software centre</p>
+        <p class="meta">
+          For Ubuntu, Debian and Linux Mint · {a.deb.mb} MB · Opens in your software centre
+          {a.deb.mirror && (
+            <>
+              <br />
+              Download not starting? <a href={a.deb.mirror}>Use the mirror</a>
+            </>
+          )}
+        </p>
         <ul class="alts">
-          <li>
-            <a href={a.rpm.url}>
-              <span><strong>.rpm</strong> for Fedora and openSUSE</span>
-              <span class="size">{a.rpm.mb} MB</span>
-            </a>
-          </li>
-          <li>
-            <a href={a.appimage.url}>
-              <span><strong>AppImage</strong> for any other Linux</span>
-              <span class="size">{a.appimage.mb} MB</span>
-            </a>
-          </li>
+          {
+            [
+              { asset: a.rpm, name: '.rpm', text: 'for Fedora and openSUSE' },
+              { asset: a.appimage, name: 'AppImage', text: 'for any other Linux' },
+            ].map((x) => (
+              <li>
+                <a class="alt" href={x.asset.url}>
+                  <span>
+                    <strong>{x.name}</strong> {x.text}
+                  </span>
+                  <span class="size">{x.asset.mb} MB</span>
+                </a>
+                {x.asset.mirror && (
+                  <a class="alt-mirror" href={x.asset.mirror} aria-label={`${x.name} from the mirror`}>
+                    Mirror
+                  </a>
+                )}
+              </li>
+            ))
+          }
         </ul>
       </article>
     </div>
 
     <p class="small" data-reveal>
       Updates arrive inside the app, and every download is signed. ·
-      <a href={RELEASES_URL}>All downloads on GitHub</a>
+      <a href={RELEASES_URL}>All downloads on GitHub</a> ·
+      <a href="https://sourceforge.net/projects/morphconvert/files/">Mirror on SourceForge</a>
     </p>
     <p class="small mac" data-reveal>Using a Mac? Morph isn’t available for macOS yet.</p>
   </div>
@@ -191,7 +216,39 @@ const a = r.assets;
     list-style: none;
   }
 
-  .alts a {
+  .alts li {
+    display: flex;
+    gap: 8px;
+  }
+
+  .meta a {
+    color: var(--text);
+    text-underline-offset: 3px;
+  }
+
+  .alt-mirror {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13.5px;
+    text-decoration: none;
+    transition:
+      border-color var(--dur-fast) var(--ease-out),
+      color var(--dur-fast) var(--ease-out);
+  }
+
+  .alt-mirror:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  .alts .alt {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -209,7 +266,7 @@ const a = r.assets;
       background-color var(--dur-fast) var(--ease-out);
   }
 
-  .alts a:hover {
+  .alts .alt:hover {
     border-color: var(--border-strong);
     background: rgb(255 255 255 / 0.05);
   }

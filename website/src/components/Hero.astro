@@ -29,6 +29,9 @@ const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DO
           Watch it in 45 seconds
         </button>
       </div>
+      <p class="mirror-hint" data-mirror-hint hidden>
+        Download not starting? <a href="#download">Use the mirror</a>
+      </p>
       <ul class="facts">
         <li>Free</li>
         <li>Works offline</li>
@@ -214,6 +217,25 @@ const pairs = ['HEIC → JPG', 'MOV → MP4', '2 PDFs → 1', 'WAV → MP3', 'DO
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 34px;
+  }
+
+  .mirror-hint {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 14.5px;
+    animation: hint-in 360ms var(--ease-out);
+  }
+
+  .mirror-hint a {
+    color: var(--text);
+    text-underline-offset: 3px;
+  }
+
+  @keyframes hint-in {
+    from {
+      opacity: 0;
+      translate: 0 -4px;
+    }
   }
 
   .facts {

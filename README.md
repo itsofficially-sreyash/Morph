@@ -7,6 +7,7 @@
 **Convert and edit files from a radial menu, on Windows and Linux.**
 Press a shortcut, drop files on the orb, pick what to do. Everything runs on your computer.
 
+[Website](https://morphconvert.pages.dev) ·
 [Download](https://github.com/itsofficially-sreyash/Morph/releases/latest) ·
 [What it can do](#what-it-can-do) ·
 [Build from source](#build-from-source) ·
@@ -55,7 +56,9 @@ Documents use the office suite you already have: Microsoft Office on Windows, or
 
 ## Download
 
-Get the latest version from the [Releases page](https://github.com/itsofficially-sreyash/Morph/releases/latest).
+Get the latest version from [morphconvert.pages.dev](https://morphconvert.pages.dev) or the
+[Releases page](https://github.com/itsofficially-sreyash/Morph/releases/latest). If a download
+won't start, the same files are on the [SourceForge mirror](https://sourceforge.net/projects/morphconvert/files/).
 
 | System | File | How to install |
 |---|---|---|
