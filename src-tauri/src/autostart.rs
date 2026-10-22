@@ -13,11 +13,43 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None::<Vec<&str>>)
 }
 
-/// Removes the autostart entry whatever the build (for the uninstaller).
-pub fn remove<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    let launcher = app.autolaunch();
-    if launcher.is_enabled().unwrap_or(false) {
-        launcher.disable().map_err(|e| format!("Couldn't remove start at sign-in: {e}"))?;
+/// The name the plugin registers under: the product name.
+const NAME: &str = "Morph";
+
+/// Removes the autostart entry whatever the build (for the uninstaller). Plain registry and
+/// file deletes, no Tauri: the MSI runs this outside the user's desktop, where Morph's
+/// windows and tray icon can't be created.
+pub fn remove() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use windows::core::{w, HSTRING};
+        use windows::Win32::Foundation::ERROR_FILE_NOT_FOUND;
+        use windows::Win32::System::Registry::{RegDeleteKeyValueW, HKEY_CURRENT_USER};
+        let name = HSTRING::from(NAME);
+        for key in [
+            w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+            // Where Task Manager records "Disabled" for the entry.
+            w!("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run"),
+        ] {
+            let err = unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, key, &name) };
+            if err != ERROR_FILE_NOT_FOUND {
+                err.ok().map_err(|e| format!("Couldn't remove start at sign-in: {}", e.message()))?;
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let config = std::env::var_os("XDG_CONFIG_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| std::path::Path::new(&h).join(".config")));
+        if let Some(entry) = config.map(|c| c.join("autostart").join(format!("{NAME}.desktop"))) {
+            match std::fs::remove_file(&entry) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(format!("Couldn't remove start at sign-in: {e}"));
+                }
+                _ => {}
+            }
+        }
     }
     Ok(())
 }

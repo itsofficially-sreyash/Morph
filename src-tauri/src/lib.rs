@@ -20,15 +20,7 @@ fn run_command<R: Runtime>(app: &AppHandle<R>, command: cli::Command, already_ru
         cli::Command::Open(files) => orb::open_files(app, files),
         cli::Command::Toggle => orb::toggle(app),
         cli::Command::RemoveIntegration => {
-            if let Err(e) = shell_integration::remove() {
-                eprintln!("shell integration: {e}");
-            }
-            if let Err(e) = hotkey::remove_system_shortcut() {
-                eprintln!("hotkey: {e}");
-            }
-            if let Err(e) = autostart::remove(app) {
-                eprintln!("autostart: {e}");
-            }
+            remove_integration();
             app.exit(0);
         }
         // Launching Morph again from the Start menu opens Settings; a first launch
@@ -38,8 +30,34 @@ fn run_command<R: Runtime>(app: &AppHandle<R>, command: cli::Command, already_ru
     }
 }
 
+/// Removes everything Morph adds to the system outside its own folder: the right-click
+/// entry, start at sign-in and (GNOME) the hotkey shortcut. Needs no window or tray icon.
+fn remove_integration() {
+    if let Err(e) = shell_integration::remove() {
+        eprintln!("shell integration: {e}");
+    }
+    if let Err(e) = hotkey::remove_system_shortcut() {
+        eprintln!("hotkey: {e}");
+    }
+    if let Err(e) = autostart::remove() {
+        eprintln!("autostart: {e}");
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let args: Vec<String> = std::env::args().collect();
+    let cwd = std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
+    let command = cli::parse(&args, &cwd);
+    // The uninstallers run this. Clean up first, before Tauri starts: the MSI runs it
+    // outside the user's desktop, where creating the tray icon fails and Morph would stop
+    // before reaching any command. Starting Tauri afterwards still hands the command to a
+    // running Morph, which cleans up too and quits.
+    let removing = matches!(command, cli::Command::RemoveIntegration);
+    if removing {
+        remove_integration();
+    }
+
     let mut builder = tauri::Builder::default();
 
     // Must be registered first so a second launch is caught before anything else starts.
@@ -66,7 +84,12 @@ pub fn run() {
             toolwin::tool_preview,
             toolwin::tool_run
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            if removing {
+                // Already cleaned up above, and no Morph was running to hand it to.
+                app.handle().exit(0);
+                return Ok(());
+            }
             tray::create(app.handle())?;
             orb::init(app.handle());
             // A taken or unsupported hotkey must not stop Morph from starting; the
@@ -83,9 +106,7 @@ pub fn run() {
                 eprintln!("shell integration: {e}");
             }
             // The first launch can carry a command too (e.g. right-click while Morph isn't running).
-            let args: Vec<String> = std::env::args().collect();
-            let cwd = std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default();
-            run_command(app.handle(), cli::parse(&args, &cwd), false);
+            run_command(app.handle(), command, false);
             Ok(())
         })
         .on_window_event(|window, event| match event {
