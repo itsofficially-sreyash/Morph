@@ -12,6 +12,7 @@ mod shell_integration;
 mod tools;
 mod toolwin;
 mod tray;
+mod updater;
 mod welcome;
 
 use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
@@ -45,6 +46,12 @@ fn remove_integration() {
     }
 }
 
+/// Settings → "Check now".
+#[tauri::command]
+fn open_update_window(app: AppHandle) {
+    updater::show(&app);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let args: Vec<String> = std::env::args().collect();
@@ -74,8 +81,10 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(hotkey::plugin())
         .plugin(autostart::plugin())
+        .plugin(updater::plugin())
         .manage(hotkey::HotkeyState::default())
         .manage(toolwin::ToolState::default())
+        .manage(updater::UpdateState::default())
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
             settings::set_settings,
@@ -86,7 +95,12 @@ pub fn run() {
             toolwin::tool_run,
             welcome::welcome_info,
             welcome::welcome_try_orb,
-            welcome::welcome_open_settings
+            welcome::welcome_open_settings,
+            updater::update_check,
+            updater::update_install,
+            updater::update_skip,
+            updater::update_open_downloads,
+            open_update_window
         ])
         .setup(move |app| {
             if removing {
@@ -117,6 +131,7 @@ pub fn run() {
             if plain {
                 welcome::show_once(app.handle());
             }
+            updater::check_after_start(app.handle());
             Ok(())
         })
         .on_window_event(|window, event| match event {

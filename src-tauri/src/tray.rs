@@ -10,6 +10,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open_orb", "Open orb", true, None::<&str>)?;
     let preview = MenuItem::with_id(app, "preview_orb", "Preview with sample files", true, None::<&str>)?;
     let help = MenuItem::with_id(app, "welcome", "How to use Morph", true, None::<&str>)?;
+    let updates = MenuItem::with_id(app, "updates", "Check for updates…", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Morph", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -19,6 +20,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             &preview,
             &PredefinedMenuItem::separator(app)?,
             &help,
+            &updates,
             &settings,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -38,6 +40,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 orb::show_at_cursor(app, Some(sample.map(String::from).to_vec()));
             }
             "welcome" => crate::welcome::show(app),
+            "updates" => crate::updater::show(app),
             "settings" => show_settings(app),
             "quit" => app.exit(0),
             _ => {}
@@ -69,7 +72,7 @@ pub fn show_settings<R: Runtime>(app: &AppHandle<R>) {
     }
     let built = WebviewWindowBuilder::new(app, SETTINGS_LABEL, WebviewUrl::App("/".into()))
         .title("Morph Settings")
-        .inner_size(560.0, 520.0)
+        .inner_size(560.0, 580.0)
         .resizable(false)
         .center()
         .build();

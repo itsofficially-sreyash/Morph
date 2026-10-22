@@ -40,7 +40,9 @@ Documents use the office suite you already have: Microsoft Office on Windows, or
 
 ## Private and light
 
-- **Nothing is uploaded.** No account, no telemetry, no internet needed.
+- **Nothing is uploaded.** No account and no telemetry. The only time Morph goes online is a quick
+  check for a new version when it starts, which you can turn off in Settings. Updates are signed,
+  and installed only when you say so.
 - **Never overwrites your files** without asking.
 - **Barely there when idle:** on Windows, about 2 MB of memory and no CPU while it waits in the
   tray. Conversions run at low priority, so your computer stays responsive.

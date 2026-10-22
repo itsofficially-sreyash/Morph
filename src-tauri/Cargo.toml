@@ -39,6 +39,8 @@ lopdf = "0.38"
 tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-autostart = "2"
+# Updates from GitHub Releases, signed with Morph's own key (`updater.rs`).
+tauri-plugin-updater = "2"
 
 # The native orb's Linux presenter (`orb/gtk.rs`): the GTK 3 that Tauri already uses.
 [target.'cfg(target_os = "linux")'.dependencies]

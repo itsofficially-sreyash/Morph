@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the settings, welcome and tool windows",
-  "windows": ["main", "welcome", "tool-*"],
+  "description": "Capability for the settings, welcome, update and tool windows",
+  "windows": ["main", "welcome", "update", "tool-*"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

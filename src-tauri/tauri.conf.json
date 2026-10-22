@@ -38,5 +38,16 @@
     "copyright": "Copyright © 2026 Sreyash Singh. GPL-3.0-or-later.",
     "license": "GPL-3.0-or-later",
     "licenseFile": "../LICENSE"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM2OURCNTNDMTBFM0ZFNjEKUldSaC91TVFQTFdkeGhQRGdtMFhOSnZJSm9xN1pyOHpTL3NKK3hRUVBGQlRuMEl5VXp0NDlndjUK",
+      "endpoints": [
+        "https://github.com/itsofficially-sreyash/Morph/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

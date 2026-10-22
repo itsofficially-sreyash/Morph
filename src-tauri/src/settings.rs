@@ -30,6 +30,9 @@ pub struct Settings {
     pub start_at_login: bool,
     /// "Convert with Morph" in the file manager's right-click menu. On by default.
     pub context_menu: bool,
+    /// Look for a new version on GitHub when Morph starts (release builds). On by default;
+    /// the only network request Morph makes.
+    pub auto_update: bool,
 }
 
 impl Default for Settings {
@@ -41,6 +44,7 @@ impl Default for Settings {
             overwrite: OverwritePolicy::Ask,
             start_at_login: true,
             context_menu: true,
+            auto_update: true,
         }
     }
 }

@@ -6,4 +6,5 @@ export interface Settings {
   overwrite: "ask" | "rename";
   start_at_login: boolean;
   context_menu: boolean;
+  auto_update: boolean;
 }

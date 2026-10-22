@@ -77,6 +77,14 @@
         <span>Show “Convert with Morph” when I right-click a file</span>
       </label>
 
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" bind:checked={settings.auto_update} />
+          <span>Check for updates when Morph starts</span>
+        </label>
+        <button type="button" class="secondary" onclick={() => invoke("open_update_window")}>Check now</button>
+      </div>
+
       <footer>
         {#if status}
           <span class="status {status.kind}">{status.text}</span>
@@ -198,6 +206,18 @@
     border-radius: 8px;
     padding: 8px 18px;
     cursor: pointer;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  button.secondary {
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--accent);
+    padding: 5px 12px;
   }
   .status.ok {
     color: var(--accent-2);
