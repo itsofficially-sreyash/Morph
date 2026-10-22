@@ -42,7 +42,8 @@ fn info(update: &Update) -> Info {
 
 async fn check<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Info>, String> {
     let mut builder = app.updater_builder();
-    // For testing an update against a local server.
+    // For testing an update against a local server (an http:// one only works in the
+    // test builds the workflow makes by hand).
     if let Some(url) = std::env::var("MORPH_UPDATE_URL").ok().and_then(|u| u.parse().ok()) {
         builder = builder.endpoints(vec![url]).map_err(|e| e.to_string())?;
     }

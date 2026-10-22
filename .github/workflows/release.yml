@@ -71,11 +71,19 @@ jobs:
           releaseDraft: true
           args: --config src-tauri/tauri.release.conf.json
 
-      - name: Test version
-        if: "!startsWith(github.ref, 'refs/tags/v') && inputs.version != ''"
+      # Test builds only, never tagged releases: build as the given version, and let the
+      # updater use an http:// address on this computer (MORPH_UPDATE_URL), for testing
+      # updates without publishing a release. Downloads are still signature-checked.
+      - name: Test build settings
+        if: "!startsWith(github.ref, 'refs/tags/v')"
         shell: bash
         run: |
-          node -e "const f='src-tauri/tauri.release.conf.json',fs=require('fs'),c=JSON.parse(fs.readFileSync(f));c.version=process.argv[1];fs.writeFileSync(f,JSON.stringify(c,null,2))" "${{ inputs.version }}"
+          node -e "
+            const f = 'src-tauri/tauri.release.conf.json', fs = require('fs'), c = JSON.parse(fs.readFileSync(f));
+            if (process.argv[1]) c.version = process.argv[1];
+            c.plugins = { updater: { dangerousInsecureTransportProtocol: true } };
+            fs.writeFileSync(f, JSON.stringify(c, null, 2));
+          " "${{ inputs.version }}"
           cat src-tauri/tauri.release.conf.json
 
       - name: Test build
