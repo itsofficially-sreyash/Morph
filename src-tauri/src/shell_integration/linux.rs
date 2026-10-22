@@ -153,6 +153,17 @@ fn thunar_action(exe: &str, exts: &[&str]) -> String {
     )
 }
 
+/// The Files script. Uninstalling Morph can't reach the user's home (package scripts run
+/// as root, and deleting an AppImage runs nothing), so the script removes itself the first
+/// time it finds Morph gone.
+fn nautilus_script(exe: &str) -> String {
+    let exe = sh_quote(exe);
+    format!(
+        "#!/bin/sh\n# Added by Morph; `morph --remove-integration` removes it.\n\
+         [ -x {exe} ] || {{ rm -f \"$0\"; exit 0; }}\nexec {exe} --open \"$@\"\n"
+    )
+}
+
 pub fn install_into(dirs: &Dirs, managers: &[Manager], exe: &Path, exts: &[&str]) -> Result<(), String> {
     let exe = exe.to_string_lossy();
     for m in managers {
@@ -161,24 +172,28 @@ pub fn install_into(dirs: &Dirs, managers: &[Manager], exe: &Path, exts: &[&str]
                 &dirs.nautilus(),
                 // Nautilus passes the selected files as arguments, relative to the folder it
                 // starts the script in; `--open` resolves them against that folder.
-                &format!("#!/bin/sh\n# Added by Morph; `morph --remove-integration` removes it.\nexec {} --open \"$@\"\n", sh_quote(&exe)),
+                &nautilus_script(&exe),
                 true,
             )?,
             Manager::Nemo => write(
                 &dirs.nemo(),
                 &format!(
                     "[Nemo Action]\nName={LABEL}\nComment=Convert or edit with Morph\nExec={} --open %F\n\
-                     Icon-Name=morph\nSelection=notnone\nExtensions={};\nQuote=double\n",
+                     Icon-Name=morph\nSelection=notnone\nExtensions={};\nQuote=double\nDependencies={};\n",
                     exec_quote(&exe),
-                    exts.join(";")
+                    exts.join(";"),
+                    // Hidden once Morph is uninstalled.
+                    exe
                 ),
                 false,
             )?,
             Manager::Dolphin => write(
                 &dirs.dolphin(),
                 &format!(
-                    "[Desktop Entry]\nType=Service\nMimeType={};\nActions=morphConvert;\nX-KDE-Priority=TopLevel\n\n\
+                    "[Desktop Entry]\nType=Service\nTryExec={}\nMimeType={};\nActions=morphConvert;\nX-KDE-Priority=TopLevel\n\n\
                      [Desktop Action morphConvert]\nName={LABEL}\nIcon=morph\nExec={} --open %F\n",
+                    // Hidden once Morph is uninstalled.
+                    exe,
                     MIME_TYPES.join(";"),
                     exec_quote(&exe)
                 ),
@@ -248,13 +263,35 @@ mod tests {
         assert_eq!(fs::metadata(d.nautilus()).unwrap().permissions().mode() & 0o111, 0o111);
         let nemo = fs::read_to_string(d.nemo()).unwrap();
         assert!(nemo.contains("Exec=\"/opt/My Apps/morph\" --open %F") && nemo.contains("Extensions=png;pdf;"), "{nemo}");
-        assert!(fs::read_to_string(d.dolphin()).unwrap().contains("MimeType=image/*;"));
+        assert!(nemo.contains("Dependencies=/opt/My Apps/morph;"), "{nemo}");
+        let dolphin = fs::read_to_string(d.dolphin()).unwrap();
+        assert!(dolphin.contains("MimeType=image/*;") && dolphin.contains("TryExec=/opt/My Apps/morph\n"), "{dolphin}");
         let uca = fs::read_to_string(d.thunar()).unwrap();
         assert!(uca.contains("<patterns>*.png;*.PNG;*.pdf;*.PDF</patterns>"), "{uca}");
 
         remove_from(&d).unwrap();
         assert!(!d.nautilus().exists() && !d.nemo().exists() && !d.dolphin().exists());
         assert!(!fs::read_to_string(d.thunar()).unwrap().contains(THUNAR_ID));
+    }
+
+    #[test]
+    fn files_script_runs_morph_and_removes_itself_once_morph_is_gone() {
+        use std::process::Command;
+        let d = dirs("self-clean");
+        // A stand-in for Morph that records its arguments.
+        let exe = d.data.join("bin/my morph");
+        let log = d.data.join("args.txt");
+        write(&exe, &format!("#!/bin/sh\nprintf '%s|' \"$@\" > {}\n", sh_quote(&log.to_string_lossy())), true).unwrap();
+        install_into(&d, &[Manager::Nautilus], &exe, &["png"]).unwrap();
+
+        let ok = Command::new(d.nautilus()).args(["a b.png", "c.png"]).status().unwrap();
+        assert!(ok.success());
+        assert_eq!(fs::read_to_string(&log).unwrap(), "--open|a b.png|c.png|");
+
+        fs::remove_file(&exe).unwrap();
+        let ok = Command::new(d.nautilus()).arg("a.png").status().unwrap();
+        assert!(ok.success(), "a missing Morph must not show an error");
+        assert!(!d.nautilus().exists(), "the script should have removed itself");
     }
 
     #[test]

@@ -39,10 +39,7 @@ pub fn remove() -> Result<(), String> {
     }
     #[cfg(target_os = "linux")]
     {
-        let config = std::env::var_os("XDG_CONFIG_HOME")
-            .map(std::path::PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| std::path::Path::new(&h).join(".config")));
-        if let Some(entry) = config.map(|c| c.join("autostart").join(format!("{NAME}.desktop"))) {
+        if let Some(entry) = entry_path() {
             match std::fs::remove_file(&entry) {
                 Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
                     return Err(format!("Couldn't remove start at sign-in: {e}"));
@@ -61,5 +58,63 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String
     }
     let launcher = app.autolaunch();
     let result = if enabled { launcher.enable() } else { launcher.disable() };
-    result.map_err(|e| format!("Couldn't change start at sign-in: {e}"))
+    result.map_err(|e| format!("Couldn't change start at sign-in: {e}"))?;
+    #[cfg(target_os = "linux")]
+    if enabled {
+        add_try_exec_to_entry()?;
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn entry_path() -> Option<std::path::PathBuf> {
+    let config = std::env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::Path::new(&h).join(".config")))?;
+    Some(config.join("autostart").join(format!("{NAME}.desktop")))
+}
+
+/// Uninstalling Morph can't remove this per-user file (package scripts run as root, and
+/// deleting an AppImage runs nothing). With `TryExec`, desktops skip the entry once Morph
+/// is gone (checked: GLib, which GNOME's session uses, refuses such an entry).
+#[cfg(target_os = "linux")]
+fn add_try_exec_to_entry() -> Result<(), String> {
+    let (Some(path), Ok(exe)) = (entry_path(), crate::shell_integration::launcher_path()) else { return Ok(()) };
+    let fail = |e: std::io::Error| format!("Couldn't change start at sign-in: {e}");
+    let text = std::fs::read_to_string(&path).map_err(fail)?;
+    let updated = with_try_exec(&text, &exe.to_string_lossy());
+    if updated != text {
+        std::fs::write(&path, updated).map_err(fail)?;
+    }
+    Ok(())
+}
+
+/// `text` with one `TryExec=<exe>` line right after the `Exec=` line.
+#[cfg(any(target_os = "linux", test))]
+fn with_try_exec(text: &str, exe: &str) -> String {
+    let mut out = String::new();
+    for line in text.lines().filter(|l| !l.starts_with("TryExec=")) {
+        out.push_str(line);
+        out.push('\n');
+        if line.starts_with("Exec=") {
+            out.push_str(&format!("TryExec={exe}\n"));
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_exec_follows_exec_once() {
+        let entry = "[Desktop Entry]\nType=Application\nName=Morph\nExec=/usr/bin/morph \nTerminal=false";
+        let once = with_try_exec(entry, "/usr/bin/morph");
+        assert_eq!(once, "[Desktop Entry]\nType=Application\nName=Morph\nExec=/usr/bin/morph \nTryExec=/usr/bin/morph\nTerminal=false\n");
+        // Re-pointed after a move, never duplicated.
+        let moved = with_try_exec(&once, "/home/u/Morph.AppImage");
+        assert_eq!(moved.matches("TryExec=").count(), 1);
+        assert!(moved.contains("TryExec=/home/u/Morph.AppImage\n"));
+    }
 }

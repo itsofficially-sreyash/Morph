@@ -61,8 +61,10 @@ Get the latest version from the [Releases page](https://github.com/itsofficially
 **Windows may show "Windows protected your PC"** because Morph isn't code-signed yet. Click
 **More info → Run anyway**.
 
-Uninstalling (Windows: Settings → Apps; Linux: your software centre) also removes the
-right-click entry and start-at-sign-in.
+**Uninstalling:** on Windows (Settings → Apps), this also removes the right-click entry and
+start-at-sign-in. On Linux (your software centre, or deleting the AppImage), those entries stay
+in your home folder but switch themselves off once Morph is gone. To remove them all first,
+including the GNOME shortcut, run `morph --remove-integration` before uninstalling.
 
 <details>
 <summary>Notes for Linux</summary>
@@ -73,6 +75,8 @@ right-click entry and start-at-sign-in.
   show it directly.
 - **PDF pages to images** needs `pdftoppm` (`sudo apt install poppler-utils`), and documents need
   LibreOffice.
+- **AppImage won't start?** AppImages need FUSE 2: `sudo apt install libfuse2t64` on Ubuntu 24.04
+  (`libfuse2` on older releases).
 
 </details>
 
