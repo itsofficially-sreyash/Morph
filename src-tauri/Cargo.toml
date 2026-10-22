@@ -79,6 +79,9 @@ windows-future = "0.3"
 # 23 s for a 12 MP JPG → PNG) but keep Morph's own code quick to rebuild.
 [profile.dev.package."*"]
 opt-level = 3
+# No debug info for dependencies: target/debug had grown to 22 GB and filled the disk.
+# Morph's own code keeps it.
+debug = false
 
 [profile.release]
 codegen-units = 1
