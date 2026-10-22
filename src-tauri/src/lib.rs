@@ -12,6 +12,7 @@ mod shell_integration;
 mod tools;
 mod toolwin;
 mod tray;
+mod welcome;
 
 use tauri::{AppHandle, Manager, RunEvent, Runtime, WindowEvent};
 
@@ -82,7 +83,10 @@ pub fn run() {
             toolwin::tool_info,
             toolwin::tool_parse_ranges,
             toolwin::tool_preview,
-            toolwin::tool_run
+            toolwin::tool_run,
+            welcome::welcome_info,
+            welcome::welcome_try_orb,
+            welcome::welcome_open_settings
         ])
         .setup(move |app| {
             if removing {
@@ -106,7 +110,13 @@ pub fn run() {
                 eprintln!("shell integration: {e}");
             }
             // The first launch can carry a command too (e.g. right-click while Morph isn't running).
+            let plain = matches!(command, cli::Command::None);
             run_command(app.handle(), command, false);
+            // First plain launch ever (after installing, or at the first sign-in): say how
+            // Morph works. Not over a right-click launch, which opens the orb instead.
+            if plain {
+                welcome::show_once(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| match event {

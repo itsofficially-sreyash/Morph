@@ -9,6 +9,7 @@ use crate::orb;
 pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open_orb", "Open orb", true, None::<&str>)?;
     let preview = MenuItem::with_id(app, "preview_orb", "Preview with sample files", true, None::<&str>)?;
+    let help = MenuItem::with_id(app, "welcome", "How to use Morph", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Morph", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -17,6 +18,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             &open,
             &preview,
             &PredefinedMenuItem::separator(app)?,
+            &help,
             &settings,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -35,6 +37,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 let sample = ["holiday.png", "clip.mp4", "song.mp3", "notes.pdf", "report.docx"];
                 orb::show_at_cursor(app, Some(sample.map(String::from).to_vec()));
             }
+            "welcome" => crate::welcome::show(app),
             "settings" => show_settings(app),
             "quit" => app.exit(0),
             _ => {}
