@@ -67,8 +67,53 @@ won't start, the same files are on the [SourceForge mirror](https://sourceforge.
 | **Fedora, openSUSE** | `Morph-x.y.z-1.x86_64.rpm` | Double-click; it opens in the software centre. |
 | **Any other Linux** | `Morph_x.y.z_amd64.AppImage` | Right-click → Properties → allow running as a program, then double-click. |
 
+Prefer the terminal? See [Install from the terminal](#install-from-the-terminal) below.
+
 **Windows may show "Windows protected your PC"** because Morph isn't code-signed yet. Click
 **More info → Run anyway**.
+
+### Install from the terminal
+
+These download the latest version from GitHub and install it.
+
+**Windows** (PowerShell, no admin needed):
+
+```powershell
+$v = (irm https://api.github.com/repos/itsofficially-sreyash/Morph/releases/latest).tag_name.TrimStart('v')
+irm "https://github.com/itsofficially-sreyash/Morph/releases/download/v$v/Morph_${v}_x64-setup.exe" -OutFile "$env:TEMP\morph-setup.exe"
+Start-Process "$env:TEMP\morph-setup.exe" -ArgumentList '/S' -Wait
+```
+
+**Linux:** first get the latest version number:
+
+```bash
+V=$(curl -s https://api.github.com/repos/itsofficially-sreyash/Morph/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+```
+
+Then, for your system:
+
+```bash
+# Ubuntu, Debian, Linux Mint
+curl -LO "https://github.com/itsofficially-sreyash/Morph/releases/download/v$V/Morph_${V}_amd64.deb"
+sudo apt install "./Morph_${V}_amd64.deb"
+
+# Fedora
+curl -LO "https://github.com/itsofficially-sreyash/Morph/releases/download/v$V/Morph-$V-1.x86_64.rpm"
+sudo dnf install "./Morph-$V-1.x86_64.rpm"
+
+# openSUSE
+curl -LO "https://github.com/itsofficially-sreyash/Morph/releases/download/v$V/Morph-$V-1.x86_64.rpm"
+sudo zypper install --allow-unsigned-rpm "./Morph-$V-1.x86_64.rpm"
+
+# Any other Linux (AppImage)
+curl -LO "https://github.com/itsofficially-sreyash/Morph/releases/download/v$V/Morph_${V}_amd64.AppImage"
+chmod +x "Morph_${V}_amd64.AppImage"
+"./Morph_${V}_amd64.AppImage"
+```
+
+If GitHub downloads are blocked on your network, replace
+`https://github.com/itsofficially-sreyash/Morph/releases/download/v$V/` with
+`https://downloads.sourceforge.net/project/morphconvert/v$V/`.
 
 **Uninstalling:** on Windows (Settings → Apps), this also removes the right-click entry and
 start-at-sign-in. On Linux (your software centre, or deleting the AppImage), those entries stay
@@ -86,6 +131,22 @@ including the GNOME shortcut, run `morph --remove-integration` before uninstalli
   LibreOffice.
 - **AppImage won't start?** AppImages need FUSE 2: `sudo apt install libfuse2t64` on Ubuntu 24.04
   (`libfuse2` on older releases).
+- **Settings opens, but the orb never appears** (on the shortcut or on "Convert with Morph"):
+  Morph couldn't find a font for the orb. Version 0.1.0 only looks in the folders Ubuntu, Debian
+  and Arch use, so this mostly affects **Fedora** and openSUSE. Give it DejaVu Sans where it looks:
+
+  ```bash
+  # Fedora
+  sudo dnf install dejavu-sans-fonts
+  sudo mkdir -p /usr/share/fonts/TTF
+  sudo ln -sf /usr/share/fonts/dejavu-sans-fonts/DejaVuSans*.ttf /usr/share/fonts/TTF/
+
+  # Any other Linux: link whichever sans font the system uses
+  sudo mkdir -p /usr/share/fonts/TTF
+  sudo ln -sf "$(fc-match -f '%{file}' 'DejaVu Sans')" /usr/share/fonts/TTF/DejaVuSans.ttf
+  ```
+
+  Then quit Morph from its tray icon (or run `pkill -x morph`) and start it again.
 
 </details>
 
