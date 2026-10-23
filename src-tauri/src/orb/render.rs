@@ -1,9 +1,10 @@
 //! Draws the orb into a premultiplied RGBA pixmap on the CPU (tiny-skia + ab_glyph).
 //! No GPU context: nothing wakes the graphics driver, and nothing runs between frames.
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ab_glyph::{point, Font, FontVec, PxScale, ScaleFont};
+use ab_glyph::{point, Font, FontVec, PxScale, ScaleFont, VariableFont};
 use tiny_skia::{
     Color, FillRule, GradientStop, Paint, Pixmap, Point, RadialGradient, SpreadMode, Stroke, StrokeDash, Transform,
 };
@@ -18,34 +19,87 @@ pub struct Fonts {
     bold: Arc<FontVec>,
 }
 
-fn read_font(paths: &[std::path::PathBuf]) -> Option<Arc<FontVec>> {
+/// The first of `paths` that reads and parses as a font, with the path it came from.
+fn read_font(paths: &[PathBuf]) -> Option<(PathBuf, FontVec)> {
+    paths.iter().find_map(|p| Some((p.clone(), FontVec::try_from_vec(std::fs::read(p).ok()?).ok()?)))
+}
+
+/// Asks fontconfig which file the desktop uses for `pattern` (e.g. `sans-serif:weight=bold`).
+/// Every Linux desktop has it, and it knows each distribution's font folders.
+#[cfg(target_os = "linux")]
+fn fc_match(pattern: &str) -> Option<PathBuf> {
+    let out = std::process::Command::new("fc-match").args(["--format=%{file}", pattern]).output().ok()?;
+    let path = PathBuf::from(String::from_utf8(out.stdout).ok()?.trim());
+    (out.status.success() && path.is_file()).then_some(path)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn fc_match(_pattern: &str) -> Option<PathBuf> {
+    None
+}
+
+/// Where to look for one weight: the Windows file, then what fontconfig picks, then the
+/// usual Linux folders (Debian/Ubuntu, Arch, Fedora, openSUSE) in case fc-match is missing.
+fn candidates(win_file: &str, pattern: &str, linux_files: &[&str]) -> Vec<PathBuf> {
+    let windir = std::env::var_os("WINDIR").map(PathBuf::from).unwrap_or_else(|| "C:\\Windows".into());
+    let mut paths = vec![windir.join("Fonts").join(win_file)];
+    paths.extend(fc_match(pattern));
+    paths.extend(linux_files.iter().map(|f| Path::new("/usr/share/fonts").join(f)));
     paths
-        .iter()
-        .find_map(|p| std::fs::read(p).ok())
-        .and_then(|bytes| FontVec::try_from_vec(bytes).ok())
-        .map(Arc::new)
+}
+
+/// Loads a heavier weight. When fontconfig hands back the regular file again, a variable
+/// font gets its own copy set to `wght`; a static one means the weight is missing (`None`,
+/// so the caller shares a loaded font instead of keeping a second copy).
+fn load_weight(paths: &[PathBuf], wght: f32, regular: &Path) -> Option<Arc<FontVec>> {
+    let (path, mut font) = read_font(paths)?;
+    let variable = font.set_variation(b"wght", wght);
+    (path != regular || variable).then(|| Arc::new(font))
 }
 
 impl Fonts {
-    /// System UI fonts: Segoe UI on Windows (ships with every Windows 10/11), common
-    /// Linux sans fonts otherwise. Nothing is bundled.
+    /// System UI fonts: Segoe UI on Windows (ships with every Windows 10/11), the desktop's
+    /// sans font on Linux. Nothing is bundled. `None` when no usable font exists at all.
     pub fn load() -> Option<Self> {
-        let windir = std::env::var_os("WINDIR").map(std::path::PathBuf::from).unwrap_or_else(|| "C:\\Windows".into());
-        let win = |f: &str| windir.join("Fonts").join(f);
-        let linux = |f: &str| std::path::PathBuf::from("/usr/share/fonts").join(f);
-        let regular = read_font(&[
-            win("segoeui.ttf"),
-            linux("truetype/dejavu/DejaVuSans.ttf"),
-            linux("TTF/DejaVuSans.ttf"),
-            linux("noto/NotoSans-Regular.ttf"),
-        ])?;
-        let bold = read_font(&[
-            win("segoeuib.ttf"),
-            linux("truetype/dejavu/DejaVuSans-Bold.ttf"),
-            linux("TTF/DejaVuSans-Bold.ttf"),
-            linux("noto/NotoSans-Bold.ttf"),
-        ]);
-        let semibold = read_font(&[win("seguisb.ttf"), linux("noto/NotoSans-SemiBold.ttf")]);
+        let (path, mut font) = read_font(&candidates(
+            "segoeui.ttf",
+            "sans-serif:weight=regular",
+            &[
+                "truetype/dejavu/DejaVuSans.ttf",
+                "TTF/DejaVuSans.ttf",
+                "dejavu-sans-fonts/DejaVuSans.ttf",
+                "truetype/DejaVuSans.ttf",
+                "noto/NotoSans-Regular.ttf",
+                "google-noto/NotoSans-Regular.ttf",
+            ],
+        ))?;
+        font.set_variation(b"wght", 400.0);
+        let regular = Arc::new(font);
+        let bold = load_weight(
+            &candidates(
+                "segoeuib.ttf",
+                "sans-serif:weight=bold",
+                &[
+                    "truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "TTF/DejaVuSans-Bold.ttf",
+                    "dejavu-sans-fonts/DejaVuSans-Bold.ttf",
+                    "truetype/DejaVuSans-Bold.ttf",
+                    "noto/NotoSans-Bold.ttf",
+                    "google-noto/NotoSans-Bold.ttf",
+                ],
+            ),
+            700.0,
+            &path,
+        );
+        let semibold = load_weight(
+            &candidates(
+                "seguisb.ttf",
+                "sans-serif:weight=semibold",
+                &["noto/NotoSans-SemiBold.ttf", "google-noto/NotoSans-SemiBold.ttf"],
+            ),
+            600.0,
+            &path,
+        );
         let bold = bold.unwrap_or_else(|| regular.clone());
         let semibold = semibold.unwrap_or_else(|| bold.clone());
         Some(Fonts { regular, semibold, bold })

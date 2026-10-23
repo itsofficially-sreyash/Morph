@@ -32,9 +32,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, GetCursorPos, IsWindowVisible, KillTimer, LoadCursorW, RegisterClassExW,
-    SetCursor, SetForegroundWindow, SetTimer, ShowWindow, UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, HTCLIENT,
-    IDC_ARROW, IDC_HAND, MA_ACTIVATE, SW_HIDE, SW_SHOW, ULW_ALPHA, WA_INACTIVE, WM_ACTIVATE, WM_KEYDOWN,
+    CreateWindowExW, DefWindowProcW, GetCursorPos, IsWindowVisible, KillTimer, LoadCursorW, MessageBoxW,
+    RegisterClassExW, SetCursor, SetForegroundWindow, SetTimer, ShowWindow, UpdateLayeredWindow, CS_HREDRAW, CS_VREDRAW, HTCLIENT,
+    IDC_ARROW, IDC_HAND, MA_ACTIVATE, MB_ICONERROR, MB_OK, MB_TOPMOST, SW_HIDE, SW_SHOW, ULW_ALPHA, WA_INACTIVE, WM_ACTIVATE, WM_KEYDOWN,
     WM_LBUTTONDOWN, WM_MOUSEACTIVATE, WM_MOUSEMOVE, WM_SETCURSOR, WM_TIMER, WNDCLASSEXW, WS_EX_LAYERED,
     WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
@@ -527,6 +527,27 @@ fn monitor_at(cursor: POINT) -> (Rect, f32) {
     }
 }
 
+thread_local! {
+    static NO_FONT_OPEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The orb draws its own text, so without a system font it can't open at all. Say so
+/// instead of doing nothing (one box at a time: its modal loop lets the hotkey re-enter).
+fn no_font_dialog() {
+    if NO_FONT_OPEN.with(|o| o.replace(true)) {
+        return;
+    }
+    unsafe {
+        MessageBoxW(
+            None,
+            w!("Morph couldn't find a font to draw its menu (Segoe UI, in C:\\Windows\\Fonts).\n\nRestore the Windows fonts, then quit Morph from its tray icon and start it again."),
+            w!("Morph"),
+            MB_OK | MB_ICONERROR | MB_TOPMOST,
+        );
+    }
+    NO_FONT_OPEN.with(|o| o.set(false));
+}
+
 pub fn show(files: Option<Vec<String>>) {
     ORB.with(|cell| {
         if let Ok(mut o) = cell.try_borrow_mut() {
@@ -550,6 +571,7 @@ pub fn show(files: Option<Vec<String>>) {
         o.hwnd
     }) else {
         eprintln!("orb: couldn't create the window (system fonts missing?)");
+        no_font_dialog();
         return;
     };
     unsafe {

@@ -133,7 +133,9 @@ including the GNOME shortcut, run `morph --remove-integration` before uninstalli
   (`libfuse2` on older releases).
 - **Settings opens, but the orb never appears** (on the shortcut or on "Convert with Morph"):
   Morph couldn't find a font for the orb. Version 0.1.0 only looks in the folders Ubuntu, Debian
-  and Arch use, so this mostly affects **Fedora** and openSUSE. Give it DejaVu Sans where it looks:
+  and Arch use, so this mostly affects **Fedora** and openSUSE. **Version 0.1.1 fixes it**: it
+  asks the system where its fonts are. Accept the update Morph offers about 30 seconds after it
+  starts, or install the latest version. To keep 0.1.0, give it DejaVu Sans where it looks:
 
   ```bash
   # Fedora

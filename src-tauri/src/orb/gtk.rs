@@ -437,11 +437,45 @@ pub fn show(files: Option<Vec<String>>) {
         o.window.clone()
     }) else {
         eprintln!("orb: couldn't create the window (system fonts missing?)");
+        no_font_dialog();
         return;
     };
     // Outside the borrow: showing emits focus and draw signals.
     window.show();
     window.present();
+}
+
+thread_local! {
+    static NO_FONT_OPEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// The orb draws its own text, so without a system font it can't open at all. Say so
+/// instead of doing nothing (one dialog at a time, however often the shortcut is pressed).
+fn no_font_dialog() {
+    if NO_FONT_OPEN.with(|o| o.replace(true)) {
+        return;
+    }
+    let dialog = gtk::MessageDialog::new(
+        None::<&gtk::Window>,
+        gtk::DialogFlags::empty(),
+        gtk::MessageType::Error,
+        gtk::ButtonsType::Close,
+        "Morph couldn't find a font to draw its menu",
+    );
+    dialog.set_title("Morph");
+    dialog.set_secondary_text(Some(
+        "Install DejaVu Sans or Noto Sans, then quit Morph from its tray icon and start it again.\n\n\
+         Fedora: sudo dnf install dejavu-sans-fonts\n\
+         Ubuntu, Debian: sudo apt install fonts-dejavu-core\n\
+         openSUSE: sudo zypper install dejavu-fonts",
+    ));
+    dialog.set_keep_above(true);
+    dialog.connect_response(|d, _| {
+        d.close();
+        NO_FONT_OPEN.with(|o| o.set(false));
+    });
+    dialog.show_all();
+    dialog.present();
 }
 
 pub fn hide() {
