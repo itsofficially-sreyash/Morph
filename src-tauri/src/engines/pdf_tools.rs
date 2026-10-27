@@ -6,12 +6,26 @@ use std::path::{Path, PathBuf};
 use lopdf::{Dictionary, Document, Object, ObjectId};
 
 fn load(src: &Path) -> Result<Document, String> {
-    Document::load(src).map_err(|e| match e {
+    Document::load(src).or_else(|e| load_without_trailing_junk(src).ok_or(e)).map_err(|e| match e {
         lopdf::Error::Decryption(_) | lopdf::Error::Unimplemented(_) if is_encrypted(src) => {
             format!("{} is password-protected", super::name(src))
         }
         other => format!("Couldn't read {}: {other}", super::name(src)),
     })
+}
+
+/// Some websites append their HTML page to a PDF download. Viewers don't mind, but lopdf
+/// only looks for the closing `%%EOF` in the last 512 bytes, so it can't find the PDF's
+/// index. Retry with everything after the last `%%EOF` left out (in memory; the file is
+/// untouched). The last marker is kept, so incremental updates (several `%%EOF`s) stay
+/// whole: only bytes that come after the entire PDF are ignored.
+fn load_without_trailing_junk(src: &Path) -> Option<Document> {
+    let bytes = std::fs::read(src).ok()?;
+    let eof = bytes.windows(5).rposition(|w| w == b"%%EOF")? + 5;
+    if bytes[eof..].iter().all(u8::is_ascii_whitespace) {
+        return None; // nothing was appended; the first error stands
+    }
+    Document::load_mem(&bytes[..eof]).ok()
 }
 
 fn is_encrypted(src: &Path) -> bool {
@@ -278,6 +292,20 @@ mod tests {
         assert_eq!(every_page(3), [(1, 1), (2, 2), (3, 3)]);
         assert_eq!(range_label((2, 2)), "page 2");
         assert_eq!(range_label((2, 4)), "pages 2-4");
+    }
+
+    #[test]
+    fn a_web_page_appended_to_a_pdf_is_ignored() {
+        let d = dir("appended");
+        let src = pdf(&d, "doc.pdf", 3);
+        let mut bytes = std::fs::read(&src).unwrap();
+        bytes.extend(b"\n<!DOCTYPE html><html>".iter().chain(&[b' '; 2000]).chain(b"</html>\n"));
+        let junk = d.join("download.pdf");
+        std::fs::write(&junk, &bytes).unwrap();
+        assert!(Document::load(&junk).is_err(), "lopdf alone should still fail on this");
+        assert_eq!(page_count(&junk).unwrap(), 3);
+        let outs = split(&junk, &every_page(3), |r| d.join(format!("p{}.pdf", r.0))).unwrap();
+        assert_eq!(outs.len(), 3);
     }
 
     #[test]
