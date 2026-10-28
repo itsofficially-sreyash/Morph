@@ -1,6 +1,6 @@
 [package]
 name = "morph"
-version = "0.1.1"
+version = "0.1.2"
 description = "Convert and edit files from a radial menu"
 authors = ["Sreyash Singh"]
 license = "GPL-3.0-or-later"
